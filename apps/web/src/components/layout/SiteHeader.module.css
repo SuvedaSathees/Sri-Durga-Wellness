@@ -376,9 +376,9 @@
 }
 
 /* Narrow laptops: tighten spacing so the clinic name and full menu both fit. */
-@media (min-width: 1260px) and (max-width: 1399px) {
+@media (min-width: 1220px) and (max-width: 1399px) {
   .bar {
-    gap: 10px;
+    gap: 8px;
   }
 
   .brand {
@@ -386,6 +386,7 @@
   }
 
   .desktopNav a {
-    padding: 0 7px;
+    padding: 0 6px;
+    font-size: 0.85rem;
   }
 }
