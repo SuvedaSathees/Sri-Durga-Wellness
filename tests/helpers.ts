@@ -18,5 +18,5 @@ export function sourceFiles(dir: string, exts = [".ts", ".tsx"]): string[] {
   return out;
 }
 
-export const rel = (p: string) => relative(ROOT, p);
+export const rel = (p: string) => relative(ROOT, p).replace(/\\/g, "/");
 export const read = (p: string) => readFileSync(p, "utf8");
