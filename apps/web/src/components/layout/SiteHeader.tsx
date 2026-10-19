@@ -38,6 +38,16 @@ export function SiteHeader() {
     if (!menuOpen && el.open) el.close();
   }, [menuOpen]);
 
+  const isHome = location.pathname === "/";
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const cartLabel =
     count === 0
       ? t("Cart, empty")
@@ -46,14 +56,21 @@ export function SiteHeader() {
         : t("Cart, {count} items", { count });
 
   return (
-    <header className={styles.header}>
+    <header
+      className={[
+        styles.header,
+        isHome ? styles.headerHome : styles.headerInner,
+        scrolled ? styles.headerScrolled : styles.headerTop,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <div className={`container ${styles.bar}`}>
         <Brand />
 
         <nav className={styles.desktopNav} aria-label={t("Main")}>
           <ul>
-            {/* The logo links home, so the bar skips "Home" to leave room for the rest. */}
-            {MAIN_NAV.filter((item) => item.to !== "/").map((item) => (
+            {MAIN_NAV.map((item) => (
               <li key={item.to}>
                 <NavLink
                   to={item.to}

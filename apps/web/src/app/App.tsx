@@ -11,7 +11,7 @@ export function App({ runtime, routing = "browser" }: { runtime: AppRuntime; rou
     <AppProvider runtime={runtime}>
       <ToastProvider>
         <RouterProvider router={router} />
-        {runtime.demo ? <DemoTools routing={routing} /> : null}
+        {import.meta.env.MODE === "test" && runtime.demo ? <DemoTools routing={routing} /> : null}
       </ToastProvider>
     </AppProvider>
   );

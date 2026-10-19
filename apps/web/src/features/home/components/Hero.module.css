@@ -1,9 +1,12 @@
 .hero {
   position: relative;
   isolation: isolate;
-  min-height: min(88svh, 780px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin-top: calc(-1 * var(--nav-height));
+  padding-top: var(--nav-height);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   overflow: hidden;
   background: #1f2c24;
   color: var(--color-on-primary);
@@ -34,12 +37,14 @@
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(90deg, rgba(22, 32, 26, 0.86) 0%, rgba(22, 32, 26, 0.62) 42%, rgba(22, 32, 26, 0.12) 78%),
-    linear-gradient(0deg, rgba(22, 32, 26, 0.55), transparent 45%);
+    linear-gradient(180deg, rgba(16, 26, 20, 0.75) 0%, rgba(16, 26, 20, 0.25) 20%, transparent 40%),
+    linear-gradient(90deg, rgba(22, 32, 26, 0.88) 0%, rgba(22, 32, 26, 0.65) 45%, rgba(22, 32, 26, 0.15) 80%),
+    linear-gradient(0deg, rgba(22, 32, 26, 0.6) 0%, transparent 40%);
 }
 
 .inner {
-  padding-block: clamp(4rem, 2rem + 10vw, 8rem) clamp(4.5rem, 3rem + 4vw, 6rem);
+  width: 100%;
+  padding-block: clamp(3.5rem, 2rem + 4vw, 5.5rem);
 }
 
 .copy {
@@ -112,8 +117,16 @@
 }
 
 @media (max-width: 640px) {
+  .hero {
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: flex-end;
+  }
+
   .shade {
-    background: linear-gradient(0deg, rgba(22, 32, 26, 0.9) 10%, rgba(22, 32, 26, 0.5) 60%, rgba(22, 32, 26, 0.3));
+    background:
+      linear-gradient(180deg, rgba(16, 26, 20, 0.8) 0%, transparent 22%),
+      linear-gradient(0deg, rgba(22, 32, 26, 0.94) 15%, rgba(22, 32, 26, 0.65) 60%, rgba(22, 32, 26, 0.4));
   }
 
   .actions > * {

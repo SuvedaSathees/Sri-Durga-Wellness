@@ -23,5 +23,5 @@ export function readWebConfig(): AppConfig {
  * follows the backend's `isSampleContent` flag and the Demo tools never exist.
  */
 export function readPreviewUi(): boolean {
-  return import.meta.env.VITE_PREVIEW_UI === "on";
+  return import.meta.env.MODE === "test" && import.meta.env.VITE_PREVIEW_UI === "on";
 }
