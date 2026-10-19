@@ -1,0 +1,19 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.main {
+  flex: 1 0 auto;
+  outline: none;
+}
+
+.sample {
+  margin: 0;
+  padding: 6px max(16px, env(safe-area-inset-left, 0px));
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: var(--text-xs);
+  text-align: center;
+}

@@ -1,0 +1,125 @@
+/** Tamil for the shop, cart, checkout and UPI payment screens of both apps. Keys are the English text exactly as written in t("…"). */
+export const shop: Record<string, string> = {
+  "Items in your cart": "உங்கள் கூடையில் உள்ள பொருட்கள்",
+  "{price} each": "ஒன்றுக்கு {price}",
+  "Quantity of {name}": "{name} — எண்ணிக்கை",
+  "Remove {name}": "{name}-ஐ நீக்கு",
+  "Order summary": "ஆர்டர் சுருக்கம்",
+  "Continue shopping": "தொடர்ந்து வாங்குங்கள்",
+  "Online payment isn't available yet": "ஆன்லைன் கட்டண வசதி இன்னும் தொடங்கவில்லை",
+  "How would you like to receive your order?": "உங்கள் ஆர்டரை எப்படிப் பெற விரும்புகிறீர்கள்?",
+  "Pickup or delivery": "நேரில் பெறுதல் அல்லது டெலிவரி",
+  Landmark: "அருகிலுள்ள அடையாளம்",
+  Delivery: "டெலிவரி",
+  MRP: "MRP",
+  "View cart": "கூடையைப் பார்க்க",
+  "Add to cart": "கூடையில் சேர்",
+  Ingredients: "மூலப்பொருட்கள்",
+  "How to use": "பயன்படுத்தும் முறை",
+  "Product categories": "பொருள் வகைகள்",
+  "All products": "அனைத்துப் பொருட்களும்",
+  "{count} products": "{count} பொருட்கள்",
+  Copied: "நகலெடுக்கப்பட்டது",
+  Copy: "நகலெடு",
+  "We couldn't verify your payment": "உங்கள் கட்டணத்தைச் சரிபார்க்க இயலவில்லை",
+  "UPI ID": "UPI ID",
+  "Copy UPI ID": "UPI ID-ஐ நகலெடு",
+  Amount: "தொகை",
+  "UPI transaction reference (UTR)": "UPI பரிவர்த்தனை எண் (UTR)",
+  "Submit for verification": "சரிபார்ப்புக்குச் சமர்ப்பி",
+  "We're checking your payment": "உங்கள் கட்டணத்தைச் சரிபார்க்கிறோம்",
+  "Payment verified": "கட்டணம் சரிபார்க்கப்பட்டது",
+  Featured: "பரிந்துரைக்கப்பட்டவை",
+  "Price: low to high": "விலை: குறைவிலிருந்து அதிகம்",
+  "Price: high to low": "விலை: அதிகத்திலிருந்து குறைவு",
+  Newest: "புதியவை",
+  "Browse the shop and add something you'd like.": "கடையைப் பார்வையிட்டு, உங்களுக்குப் பிடித்தவற்றைச் சேருங்கள்.",
+  "Some items have changed": "சில பொருட்களில் மாற்றம் உள்ளது",
+  "Update my cart": "கூடையைப் புதுப்பி",
+  "We can't supply everything in your cart right now. Update your cart to continue with what's available.":
+    "உங்கள் கூடையில் உள்ள அனைத்தையும் தற்போது வழங்க இயலவில்லை. கிடைப்பவற்றுடன் தொடர, கூடையைப் புதுப்பியுங்கள்.",
+  "Clinic pickup is free. Home delivery is {fee}, free on orders of {threshold} or more.":
+    "மையத்தில் நேரில் பெற்றுக்கொள்வது இலவசம். வீட்டு டெலிவரிக் கட்டணம் {fee}; {threshold} அல்லது அதற்கு மேலான ஆர்டர்களுக்கு இலவசம்.",
+  "Delivery charges, if any, are shown at checkout.":
+    "டெலிவரிக் கட்டணம் ஏதேனும் இருந்தால், ஆர்டர் செய்யும்போது காட்டப்படும்.",
+  "Update your cart before checking out.": "ஆர்டர் செய்வதற்கு முன் உங்கள் கூடையைப் புதுப்பியுங்கள்.",
+  "Collect from the clinic — free": "மையத்தில் நேரில் பெற்றுக்கொள்ளுங்கள் — இலவசம்",
+  "{fee}, free on orders of {threshold} or more": "{fee}; {threshold} அல்லது அதற்கு மேலான ஆர்டர்களுக்கு இலவசம்",
+  "The clinic hasn't set up UPI payments yet, so orders can't be placed online. Please contact the clinic to order.":
+    "மையம் இன்னும் UPI கட்டண வசதியை அமைக்கவில்லை; எனவே ஆன்லைனில் ஆர்டர் செய்ய இயலாது. ஆர்டர் செய்ய மையத்தைத் தொடர்புகொள்ளுங்கள்.",
+  "Review my cart": "கூடையைச் சரிபார்",
+  "Pickup and delivery aren't available right now. Please contact the clinic.":
+    "நேரில் பெறுதலும் டெலிவரியும் தற்போது கிடைக்கவில்லை. மையத்தைத் தொடர்புகொள்ளுங்கள்.",
+  "Pickup branch": "பெற்றுக்கொள்ளும் கிளை",
+  "Pickup from {branch}, {address}": "பெற்றுக்கொள்ளும் இடம்: {branch}, {address}",
+  "Delivery address": "டெலிவரி முகவரி",
+  "Notes for the clinic": "மையத்துக்கான குறிப்புகள்",
+  "Place order and pay": "ஆர்டர் செய்து செலுத்துங்கள்",
+  "You'll pay by UPI on the next page. Your order is confirmed once the clinic has verified your payment.":
+    "அடுத்த பக்கத்தில் UPI மூலம் கட்டணம் செலுத்தலாம். மையம் உங்கள் கட்டணத்தைச் சரிபார்த்த பிறகே ஆர்டர் உறுதிசெய்யப்படும்.",
+  "This product is out of stock at the moment. Please check back soon.":
+    "இந்தப் பொருள் தற்போது கையிருப்பில் இல்லை. விரைவில் மீண்டும் பாருங்கள்.",
+  "You already have the most we can supply right now in your cart.":
+    "தற்போது நாங்கள் வழங்கக்கூடிய அதிகபட்ச எண்ணிக்கை ஏற்கெனவே உங்கள் கூடையில் உள்ளது.",
+  "Added to cart: {name}": "கூடையில் சேர்க்கப்பட்டது: {name}",
+  "In your cart: {count}": "உங்கள் கூடையில்: {count}",
+  "Free pickup at the clinic": "மையத்தில் இலவசமாகப் பெற்றுக்கொள்ளலாம்",
+  "Home delivery available at checkout": "ஆர்டர் செய்யும்போது வீட்டு டெலிவரியைத் தேர்ந்தெடுக்கலாம்",
+  "About this product": "இந்தப் பொருளைப் பற்றி",
+  Highlights: "சிறப்பம்சங்கள்",
+  "Sort by": "வரிசைப்படுத்து",
+  "No products here yet": "இங்கு இன்னும் பொருட்கள் இல்லை",
+  "See all products": "அனைத்துப் பொருட்களையும் பார்க்க",
+  "Try another category, or check back soon.": "வேறு வகையைப் பாருங்கள், அல்லது விரைவில் மீண்டும் வாருங்கள்.",
+  "1 product": "1 பொருள்",
+  "Sign in to place your order and track it in your account.":
+    "ஆர்டர் செய்து, அதன் நிலையை உங்கள் கணக்கில் அறிய உள்நுழையுங்கள்.",
+  "Please contact the clinic to complete this payment.": "இந்தக் கட்டணத்தை முடிக்க மையத்தைத் தொடர்புகொள்ளுங்கள்.",
+  "Demo payment": "டெமோ கட்டணம்",
+  "This is sample data. The UPI ID below is not a real account and can't receive money — please don't send a real payment. Enter any 12-digit number as the reference.":
+    "இது மாதிரித் தரவு. கீழே உள்ள UPI ID உண்மையான கணக்கு அல்ல; அதற்குப் பணம் அனுப்ப இயலாது — உண்மையான கட்டணம் எதையும் அனுப்ப வேண்டாம். குறிப்பு எண்ணாக ஏதேனும் ஒரு 12 இலக்க எண்ணை உள்ளிடுங்கள்.",
+  "Please check the UPI reference and submit it again, or contact the clinic.":
+    "UPI குறிப்பு எண்ணைச் சரிபார்த்து மீண்டும் சமர்ப்பியுங்கள், அல்லது மையத்தைத் தொடர்புகொள்ளுங்கள்.",
+  "Pay {amount} by UPI": "UPI மூலம் {amount} செலுத்துங்கள்",
+  "UPI QR code for {amount} to {payee}": "{payee}-க்கு {amount} செலுத்துவதற்கான UPI QR குறியீடு",
+  "Scan the QR code with any UPI app (Google Pay, PhonePe, Paytm, BHIM or your bank's app).":
+    "ஏதேனும் ஒரு UPI செயலியில் (Google Pay, PhonePe, Paytm, BHIM அல்லது உங்கள் வங்கியின் செயலி) QR குறியீட்டை ஸ்கேன் செய்யுங்கள்.",
+  "Pay to": "பெறுநர்",
+  "Note / remarks": "குறிப்பு",
+  "Pay with a UPI app": "UPI செயலியில் செலுத்துங்கள்",
+  "This opens your UPI app when you're on a phone.": "கைபேசியில் இருந்தால், இது உங்கள் UPI செயலியைத் திறக்கும்.",
+  "Please pay by {time}, or the items or seat are released.":
+    "{time}-க்குள் செலுத்துங்கள்; இல்லையெனில் பொருட்கள் அல்லது உங்களுக்காக ஒதுக்கிய இடம் மற்றவர்களுக்கு விடுவிக்கப்படும்.",
+  "Tell us your UPI reference": "உங்கள் UPI குறிப்பு எண்ணைத் தெரிவியுங்கள்",
+  "After paying, your UPI app shows a 12-digit transaction reference (UTR). Enter it here so our team can find and verify your payment.":
+    "கட்டணம் செலுத்திய பிறகு, உங்கள் UPI செயலி 12 இலக்கப் பரிவர்த்தனை எண்ணை (UTR) காட்டும். எங்கள் குழு உங்கள் கட்டணத்தைக் கண்டறிந்து சரிபார்க்க, அந்த எண்ணை இங்கே உள்ளிடுங்கள்.",
+  "Usually 12 digits, for example 412345678901": "பொதுவாக 12 இலக்கங்கள், எடுத்துக்காட்டாக 412345678901",
+  "Name on the paying account": "கட்டணம் செலுத்திய கணக்கில் உள்ள பெயர்",
+  "Thank you. Our team will match UPI reference ending {last4} with the clinic's account — usually within one working day. This page updates by itself.":
+    "நன்றி. {last4} என முடியும் UPI குறிப்பு எண்ணை எங்கள் குழு மையத்தின் கணக்குடன் ஒப்பிட்டுச் சரிபார்க்கும் — பொதுவாக ஒரு வேலை நாளுக்குள். இந்தப் பக்கம் தானாகவே புதுப்பிக்கப்படும்.",
+  "Your booking or order is confirmed only after the clinic has verified the payment.":
+    "மையம் கட்டணத்தைச் சரிபார்த்த பிறகே உங்கள் முன்பதிவு அல்லது ஆர்டர் உறுதிசெய்யப்படும்.",
+  "The clinic verified your payment on {date}.": "மையம் உங்கள் கட்டணத்தை {date} அன்று சரிபார்த்தது.",
+  "The clinic has verified your payment.": "மையம் உங்கள் கட்டணத்தைச் சரிபார்த்துவிட்டது.",
+  "This payment is closed": "இந்தக் கட்டணக் கோரிக்கை முடிவடைந்தது",
+  "It was cancelled or the time to pay ran out. Nothing more is needed from you.":
+    "இது ரத்துசெய்யப்பட்டது, அல்லது கட்டணம் செலுத்துவதற்கான காலக்கெடு முடிந்துவிட்டது. நீங்கள் வேறு எதுவும் செய்ய வேண்டியதில்லை.",
+  "No UPI app found": "UPI செயலி எதுவும் கிடைக்கவில்லை",
+  "Copy the UPI ID and pay from your UPI app, then come back and enter the reference.":
+    "UPI ID-ஐ நகலெடுத்து உங்கள் UPI செயலியில் செலுத்துங்கள்; பிறகு இங்கே திரும்பி வந்து குறிப்பு எண்ணை உள்ளிடுங்கள்.",
+  "View my order": "என் ஆர்டரைப் பார்க்க",
+  "View my classes": "என் வகுப்புகளைப் பார்க்க",
+  "View my courses": "என் பாடநெறிகளைப் பார்க்க",
+  Name: "பெயர்",
+  "Products selected by our team, delivered anywhere in India or ready for clinic pickup.":
+    "எங்கள் குழு தேர்ந்தெடுத்த பொருட்கள் — இந்தியாவில் எங்கும் டெலிவரி, அல்லது மையத்தில் நேரில் பெற்றுக்கொள்ளலாம்.",
+  "Home delivery anywhere in India": "இந்தியாவில் எங்கும் வீட்டு டெலிவரி",
+  "We deliver to every PIN code in India.": "இந்தியாவின் அனைத்துப் பின்கோடுகளுக்கும் டெலிவரி செய்கிறோம்.",
+  "State / union territory": "மாநிலம் / யூனியன் பிரதேசம்",
+  "Choose your state": "உங்கள் மாநிலத்தைத் தேர்ந்தெடுங்கள்",
+  "Thank you. Our team will match UPI reference ending {last4} with the clinic's account. This page updates by itself.":
+    "நன்றி. {last4} என முடியும் UPI குறிப்பு எண்ணை எங்கள் குழு மையத்தின் கணக்குடன் ஒப்பிட்டுச் சரிபார்க்கும். இந்தப் பக்கம் தானாகவே புதுப்பிக்கப்படும்.",
+  "The clinic checks UPI payments once a day, so confirmation can take up to a day.":
+    "மையம் UPI கட்டணங்களை நாளுக்கு ஒருமுறை சரிபார்க்கிறது; எனவே உறுதிசெய்ய ஒரு நாள் வரை ஆகலாம்.",
+  "The clinic checks UPI payments {count} times a day.": "மையம் UPI கட்டணங்களை நாளுக்கு {count} முறை சரிபார்க்கிறது.",
+};

@@ -1,0 +1,30 @@
+{
+  "name": "sri-durga-wellness-apps",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sri Durga Wellness — web (React + Vite) and mobile (Expo) frontends sharing one typed core.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev:web": "npm run dev -w @sdw/web",
+    "build:web": "npm run build -w @sdw/web",
+    "dev:mobile": "npm run start -w @sdw/mobile",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tests/tsconfig.json",
+    "test": "tsx --tsconfig tsconfig.base.json --import ./tests/support/register-css.mjs --test \"packages/*/tests/**/*.test.ts\" \"packages/*/tests/**/*.test.tsx\" \"apps/*/tests/unit/**/*.test.ts\" \"apps/*/tests/unit/**/*.test.tsx\" \"tests/**/*.test.ts\"",
+    "test:e2e": "npm run test:e2e -w @sdw/web",
+    "tokens:css": "tsx packages/tokens/scripts/write-css.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.0",
+    "typescript": "~6.0.3"
+  }
+}

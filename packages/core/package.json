@@ -1,0 +1,21 @@
+{
+  "name": "@sdw/core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Platform-agnostic models, validation, business logic, i18n, API client, services and mocks.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./api": "./src/api/index.ts",
+    "./mocks": "./src/mocks/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "zod": "^4.1.12"
+  }
+}

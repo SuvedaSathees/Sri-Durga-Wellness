@@ -1,0 +1,165 @@
+.intro {
+  position: relative;
+}
+
+.introGrid {
+  display: grid;
+  gap: var(--space-7);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .introGrid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+}
+
+.introImage {
+  border-radius: 200px 200px var(--radius-xl) var(--radius-xl);
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  max-height: 560px;
+  box-shadow: var(--shadow-lg);
+}
+
+.introImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pillars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.pillars li {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.pillars li > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pillarIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+}
+
+.productGrid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+}
+
+.quote {
+  margin: 0;
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.quote blockquote {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  color: var(--color-heading);
+}
+
+.faqs {
+  display: grid;
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.faq {
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 60px;
+  padding: var(--space-3) 0;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 500;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary svg {
+  flex: none;
+  transition: transform var(--duration-base) var(--easing);
+}
+
+.faq[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.faq > div {
+  padding-bottom: var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.faqMore {
+  margin-top: var(--space-5);
+}
+
+.cta {
+  position: relative;
+  overflow: hidden;
+  padding-block: clamp(3.5rem, 2.5rem + 4vw, 6rem);
+  background:
+    radial-gradient(circle at 15% 20%, rgba(167, 181, 160, 0.25), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(120, 134, 107, 0.35), transparent 45%), var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.ctaInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-4);
+  max-width: 46rem;
+}
+
+.ctaInner h2 {
+  color: var(--color-on-primary);
+}
+
+.ctaInner p {
+  color: #e3e9de;
+}
+
+.ctaGhost {
+  background: transparent;
+  color: var(--color-on-primary);
+  border-color: rgba(250, 248, 242, 0.7);
+}
+
+.ctaGhost:hover:not(:disabled) {
+  background: rgba(250, 248, 242, 0.12);
+  color: #fff;
+}

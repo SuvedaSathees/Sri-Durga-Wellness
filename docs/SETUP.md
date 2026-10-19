@@ -1,0 +1,95 @@
+# Setup
+
+## Requirements
+
+- Node.js **22.12 or newer** (`.nvmrc` pins 22) and npm 10+
+- For the mobile app: the [Expo Go](https://expo.dev/go) app on a phone, or Android Studio
+  (emulator) / Xcode (iOS simulator, macOS only). Expo SDK 58, React Native 0.88.
+
+## Install
+
+```bash
+npm install          # installs every workspace (packages/* and apps/*)
+```
+
+## Web app
+
+```bash
+cp apps/web/.env.example apps/web/.env.local   # defaults to the mock backend
+npm run dev:web                                # http://localhost:5173
+```
+
+For a clean showcase of the mock site (no "sample content" banner, no Demo tools button), set
+`VITE_PREVIEW_UI=off`. Keep it on while testing — the browser tests use the Demo tools to sign in
+and to act as clinic staff verifying payments.
+
+Production build:
+
+```bash
+npm run build:web                              # type-checks, then builds apps/web/dist
+npm run preview -w @sdw/web                    # serves the build on http://localhost:4173
+```
+
+`apps/web/dist` is a static site. Serve it from any static host or CDN, and configure the host
+to return `index.html` for unknown paths (single-page app routing). Suggested security headers:
+`Content-Security-Policy` with `connect-src` limited to your API origin, `Strict-Transport-Security`,
+`X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
+
+## Mobile app
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env   # defaults to the mock backend
+npm run dev:mobile                             # starts Expo; press a (Android) or i (iOS), or scan the QR code with Expo Go
+```
+
+The first time, run `npx expo install --check` inside `apps/mobile` to align native module
+versions with the installed Expo SDK.
+
+Builds for the stores use [EAS](https://docs.expo.dev/build/introduction/):
+
+```bash
+cd apps/mobile
+npx eas build --profile preview --platform android   # internal test build
+npx eas build --profile production --platform all     # store builds (live API)
+```
+
+Set `EXPO_PUBLIC_API_BASE_URL` for each profile in `eas.json` or as EAS environment variables.
+Bundle identifiers (`com.sridurgawellness.app`) and the deep-link scheme (`sridurgawellness://`)
+are in `app.config.ts`; change them before the first store build.
+
+## Useful commands (from the repository root)
+
+| Command              | What it does                                                                |
+| -------------------- | --------------------------------------------------------------------------- |
+| `npm test`           | All unit, contract, architecture and Tamil-coverage tests                   |
+| `npm run typecheck`  | Type-checks every package and app                                           |
+| `npm run test:e2e`   | Browser tests for the web app (needs `npm run preview -w @sdw/web` running) |
+| `npm run tokens:css` | Regenerates `apps/web/src/styles/tokens.css` after changing design tokens   |
+| `npm run format`     | Prettier                                                                    |
+
+## Project layout
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md). In short: `packages/core` (types, validation, logic,
+API client, mock backend), `packages/controllers` (shared React hooks), `packages/tokens` (design
+tokens), `apps/web` (Vite + React) and `apps/mobile` (Expo).
+
+## Adding a feature
+
+1. Add or confirm the endpoint in `docs/API_CONTRACT.md` and `packages/core/src/api/endpoints.ts`.
+2. Add request/response types in `packages/core/src/models`, a function in the matching service,
+   and a handler in the mock backend.
+3. Add a hook in `packages/controllers` (query key in `query-keys.ts`).
+4. Build the screens in `apps/web/src/features/<feature>` and `apps/mobile/src/features/<feature>`
+   using the shared UI kits, register the route (web `app/routes.tsx`, mobile `navigation/`).
+5. Add Tamil for every new `t("…")` string in `packages/core/src/i18n/ta/`.
+6. `npm test && npm run typecheck`, then add a browser test in `apps/web/tests/e2e`.
+
+## Before launch
+
+- [ ] Backend connected and every endpoint in the contract marked **Confirmed**.
+- [ ] `VITE_API_MODE=live` / `EXPO_PUBLIC_API_MODE=live` in production.
+- [ ] All sample content replaced by clinic-approved text, practitioners, prices, policies,
+      contact details and photos (the sample banner disappears when `isSampleContent` is false).
+- [ ] Tamil text reviewed by a Tamil speaker; policies translated only after approval.
+- [ ] App icons, splash screen, bundle ids and deep-link domains set for the stores.
+- [ ] Privacy policy URL and data-safety / privacy nutrition labels for the app stores.
