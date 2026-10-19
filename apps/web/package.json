@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
+    "build:test": "tsc -p tsconfig.json && vite build --mode test",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -p tsconfig.json",
     "test:e2e": "node --test tests/e2e/*.test.mjs"

@@ -29,8 +29,8 @@
 ## Browser tests
 
 ```bash
-npm run build:web
-npm run preview -w @sdw/web &        # http://localhost:4173, mock backend
+npm run build:test -w @sdw/web       # mock backend with the Demo tools (apps/web/.env.test)
+npm run preview -w @sdw/web &        # http://localhost:4173
 npm run test:e2e
 ```
 

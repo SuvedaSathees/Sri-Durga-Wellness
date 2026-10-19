@@ -19,9 +19,10 @@ cp apps/web/.env.example apps/web/.env.local   # defaults to the mock backend
 npm run dev:web                                # http://localhost:5173
 ```
 
-For a clean showcase of the mock site (no "sample content" banner, no Demo tools button), set
-`VITE_PREVIEW_UI=off`. Keep it on while testing — the browser tests use the Demo tools to sign in
-and to act as clinic staff verifying payments.
+The mock site shows no "sample content" banner and no Demo tools button. To see them (the Demo
+tools let you sign in as a sample customer and act as clinic staff verifying a payment), set
+`VITE_PREVIEW_UI=on` in `apps/web/.env.local`. The browser tests turn them on through
+`apps/web/.env.test` (`npm run build:test -w @sdw/web`).
 
 Production build:
 

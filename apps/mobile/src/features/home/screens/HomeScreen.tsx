@@ -8,6 +8,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useClasses,
+  useConfig,
   useContentBlocks,
   useCourses,
   useFaqs,
@@ -28,6 +29,7 @@ import {
   Text,
   type IconName,
 } from "../../../components/ui";
+import { readPreviewUi } from "../../../config/env";
 import type { RootNavigation } from "../../../navigation/types";
 import { HERO_IMAGE } from "../../../platform/images";
 import { theme } from "../../../theme";
@@ -90,6 +92,7 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<RootNavigation>();
   const site = useSite();
+  const config = useConfig();
   const blocks = useContentBlocks("home.");
   const services = useServiceList();
   const classes = useClasses();
@@ -132,7 +135,7 @@ export function HomeScreen() {
       </ImageBackground>
 
       <View style={styles.content}>
-        {site.data?.isSampleContent ? (
+        {site.data?.isSampleContent && (config.apiMode === "live" || readPreviewUi()) ? (
           <Notice tone="warning">
             {t("Preview · sample content — to be replaced with clinic-approved details before launch")}
           </Notice>

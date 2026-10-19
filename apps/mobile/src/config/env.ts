@@ -18,3 +18,8 @@ export function readMobileConfig(): AppConfig {
     Platform.OS === "ios" ? "ios" : "android",
   );
 }
+
+/** Mock mode only: show the sample-content notice. Off unless EXPO_PUBLIC_PREVIEW_UI=on. */
+export function readPreviewUi(): boolean {
+  return process.env.EXPO_PUBLIC_PREVIEW_UI === "on";
+}

@@ -18,10 +18,10 @@ export function readWebConfig(): AppConfig {
 }
 
 /**
- * Mock mode only: show the "sample content" banner and the Demo tools button (default on).
- * Set VITE_PREVIEW_UI=off for a clean showcase build. In live mode the banner follows the
- * backend's `isSampleContent` flag and the Demo tools never exist.
+ * Mock mode only: show the "sample content" banner and the Demo tools button. Off unless
+ * VITE_PREVIEW_UI=on (the browser tests turn it on, see .env.test). In live mode the banner
+ * follows the backend's `isSampleContent` flag and the Demo tools never exist.
  */
 export function readPreviewUi(): boolean {
-  return import.meta.env.VITE_PREVIEW_UI !== "off";
+  return import.meta.env.VITE_PREVIEW_UI === "on";
 }
