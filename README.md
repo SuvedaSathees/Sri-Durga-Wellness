@@ -24,7 +24,7 @@ API client and a mock backend. Both talk to a separately developed backend over 
 
 ```bash
 npm install
-npm run dev:web        # website on http://localhost:5173 (mock backend)
+npm run dev            # website on http://localhost:5173 (mock backend); same as npm run dev:web
 npm run dev:mobile     # Expo — open on a phone with Expo Go, or an emulator
 npm test               # unit, contract, architecture and Tamil-coverage tests
 ```
