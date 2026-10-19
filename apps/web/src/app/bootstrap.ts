@@ -24,7 +24,7 @@ export async function createWebRuntime(): Promise<AppRuntime> {
       preferences,
       initialLocale,
       adapter: mock.adapter,
-      demo: readPreviewUi() ? mock.controls : null,
+      demo: mock.controls,
     });
   }
   return createRuntime({ config, tokenStore, preferences, initialLocale });

@@ -7,8 +7,14 @@ export function AccountLayout() {
   const t = useT();
   const { user } = useSession();
   const signOut = useSignOut();
-  const navigate = useNavigate();
+  const isStaff =
+    user?.role === "front_desk" ||
+    user?.role === "owner" ||
+    user?.email?.includes("frontdesk") ||
+    user?.email?.includes("owner");
+
   const nav: Array<{ to: string; label: string; icon: IconName; end?: boolean }> = [
+    ...(isStaff ? [{ to: "/staff", label: t("Staff Dashboard"), icon: "stethoscope" as IconName }] : []),
     { to: "/account", label: t("Overview"), icon: "leaf", end: true },
     { to: "/account/appointments", label: t("Appointments"), icon: "calendar" },
     { to: "/account/orders", label: t("Orders"), icon: "cart" },

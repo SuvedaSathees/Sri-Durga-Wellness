@@ -58,6 +58,10 @@ const publicRoutes: RouteObject[] = [
 ];
 
 const privateRoutes: RouteObject[] = [
+  {
+    path: "staff",
+    lazy: screen(() => import("../features/staff/screens/StaffDashboardScreen"), "StaffDashboardScreen"),
+  },
   { path: "checkout", lazy: screen(() => import("../features/shop/screens/CheckoutScreen"), "CheckoutScreen") },
   { path: "pay/:paymentId", lazy: screen(() => import("../features/payments/screens/PaymentScreen"), "PaymentScreen") },
   {

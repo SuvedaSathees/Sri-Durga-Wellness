@@ -1,5 +1,7 @@
 import type { ID, ISODateTime, Locale } from "./common";
 
+export type UserRole = "customer" | "front_desk" | "owner";
+
 export type User = {
   id: ID;
   name: string;
@@ -7,6 +9,7 @@ export type User = {
   /** E.164, e.g. "+919876543210". */
   phone: string;
   locale: Locale;
+  role?: UserRole;
   createdAt: ISODateTime;
 };
 

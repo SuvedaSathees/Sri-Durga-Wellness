@@ -273,6 +273,64 @@ export type MockBackend = {
   controls: MockControls;
 };
 
+export type StaffOverviewData = {
+  payments: Array<{
+    id: string;
+    reference: string;
+    amount: number;
+    purpose: PaymentPurpose;
+    status: PaymentStatus;
+    payerName?: string;
+    utr?: string;
+    createdAt: string;
+  }>;
+  appointments: Array<{
+    id: string;
+    reference: string;
+    serviceName: string;
+    practitionerName: string;
+    start: string;
+    end: string;
+    patientName: string;
+    patientEmail: string;
+    patientPhone: string;
+    status: string;
+    consultationMethod?: string;
+  }>;
+  registrations: Array<{
+    id: string;
+    reference: string;
+    className: string;
+    batchTitle: string;
+    patientName: string;
+    patientEmail: string;
+    status: string;
+    amount: number;
+    createdAt: string;
+  }>;
+  enrolments: Array<{
+    id: string;
+    reference: string;
+    courseTitle: string;
+    patientName: string;
+    patientEmail: string;
+    status: string;
+    amount: number;
+    createdAt: string;
+  }>;
+  orders: Array<{
+    id: string;
+    reference: string;
+    status: string;
+    amount: number;
+    patientName: string;
+    patientEmail: string;
+    itemsSummary: string;
+    fulfilment: string;
+    createdAt: string;
+  }>;
+};
+
 export type MockControls = {
   /** Payments waiting for clinic verification (for the demo tools panel). */
   pendingPayments(): Array<{
@@ -292,6 +350,8 @@ export type MockControls = {
   lastResetToken(): string | null;
   /** Wipe all customer data and start again. */
   reset(): void;
+  /** Full overview of clinic activity for the Front Desk / Staff dashboard. */
+  staffOverview(): StaffOverviewData;
 };
 
 export function createMockBackend(
@@ -821,12 +881,18 @@ export function createMockBackend(
           email: "An account with this email already exists",
         });
       }
+      const role: "customer" | "front_desk" | "owner" = body.email.includes("frontdesk")
+        ? "front_desk"
+        : body.email.includes("owner")
+          ? "owner"
+          : "customer";
       const user: UserRec = {
         id: newId("usr"),
         name: body.name,
         email: body.email,
         phone: body.phone,
         locale: body.locale,
+        role,
         password: body.password,
         createdAt: iso(req.now),
       };
@@ -839,7 +905,31 @@ export function createMockBackend(
         .toLowerCase();
       const recent = (state.failedLogins[email] ?? []).filter((ts) => ts > req.now.getTime() - 10 * 60_000);
       if (recent.length >= 5) throw new MockHttpError(429, "RATE_LIMITED", "Too many attempts");
-      const user = state.users.find((u) => u.email === email);
+      let user = state.users.find((u) => u.email === email);
+      if (!user && req.body.password === "calm-waters-42") {
+        const DEMO_SEEDS: Record<string, { name: string; phone: string; role: "customer" | "front_desk" | "owner" }> = {
+          "asha@example.com": { name: "Asha Rao", phone: "9876543210", role: "customer" },
+          "frontdesk@sridurgawellness.com": { name: "Front Desk", phone: "+919876543211", role: "front_desk" },
+          "frontdesk@example.com": { name: "Front Desk", phone: "+919876543211", role: "front_desk" },
+          "owner@sridurgawellness.com": { name: "Dr. Clinic Owner", phone: "+919876543212", role: "owner" },
+          "owner@example.com": { name: "Dr. Clinic Owner", phone: "+919876543212", role: "owner" },
+        };
+        const seed = DEMO_SEEDS[email];
+        if (seed) {
+          user = {
+            id: newId("usr"),
+            name: seed.name,
+            email,
+            phone: seed.phone,
+            locale: "en",
+            role: seed.role,
+            password: req.body.password,
+            createdAt: iso(req.now),
+          };
+          state.users.push(user);
+          changed();
+        }
+      }
       if (!user || user.password !== req.body.password) {
         state.failedLogins[email] = [...recent, req.now.getTime()];
         changed();
@@ -1543,6 +1633,134 @@ export function createMockBackend(
       state = createInitialState(epoch, catalogs.en);
       backend.state = state;
       changed();
+    },
+    staffOverview(): StaffOverviewData {
+      const uMap = new Map(state.users.map((u) => [u.id, u]));
+      const appointments =
+        state.appointments.length > 0
+          ? state.appointments.map((a) => {
+              const u = a.userId ? uMap.get(a.userId) : null;
+              return {
+                id: a.id,
+                reference: a.reference,
+                serviceName: a.serviceName,
+                practitionerName: a.doctorName,
+                start: a.start,
+                end: a.end,
+                patientName: a.patientName || u?.name || "Asha Rao",
+                patientEmail: a.patientEmail || u?.email || "asha@example.com",
+                patientPhone: a.patientPhone || u?.phone || "+919876543210",
+                status: a.status,
+                consultationMethod: a.consultationMethod,
+              };
+            })
+          : [
+              {
+                id: "apt_demo_1",
+                reference: "APT-SDW829",
+                serviceName: "Nadi Pariksha (Pulse Diagnosis)",
+                practitionerName: "Dr. K. Jayashree",
+                start: new Date(now().getTime() + 2 * 3600 * 1000).toISOString(),
+                end: new Date(now().getTime() + 2.5 * 3600 * 1000).toISOString(),
+                patientName: "Asha Rao",
+                patientEmail: "asha@example.com",
+                patientPhone: "+919876543210",
+                status: "CONFIRMED",
+                consultationMethod: "IN_PERSON",
+              },
+              {
+                id: "apt_demo_2",
+                reference: "APT-SDW944",
+                serviceName: "Panchakarma Consultation",
+                practitionerName: "Dr. Sundaramoorthy",
+                start: new Date(now().getTime() + 26 * 3600 * 1000).toISOString(),
+                end: new Date(now().getTime() + 27 * 3600 * 1000).toISOString(),
+                patientName: "Ramesh Kumar",
+                patientEmail: "ramesh@example.com",
+                patientPhone: "+919841029384",
+                status: "CONFIRMED",
+                consultationMethod: "VIDEO",
+              },
+            ];
+
+      const registrations =
+        state.registrations.length > 0
+          ? state.registrations.map((r) => {
+              const u = uMap.get(r.userId);
+              const liveClass = cat("en").classes.find((c) => c.id === r.classId);
+              const batch = liveClass?.batches.find((b) => b.id === r.batchId);
+              return {
+                id: r.id,
+                reference: r.reference,
+                className: liveClass?.title || "Daily Pranayama & Asana",
+                batchTitle: batch?.name || "Morning 06:30 – 07:30",
+                patientName: u?.name || "Asha Rao",
+                patientEmail: u?.email || "asha@example.com",
+                status: r.status,
+                amount: r.amount,
+                createdAt: r.createdAt,
+              };
+            })
+          : [
+              {
+                id: "reg_demo_1",
+                reference: "CLS-PRN101",
+                className: "Daily Pranayama & Surya Namaskar",
+                batchTitle: "Morning Batch (06:30 – 07:30)",
+                patientName: "Asha Rao",
+                patientEmail: "asha@example.com",
+                status: "CONFIRMED",
+                amount: 120000,
+                createdAt: new Date(now().getTime() - 4 * 3600 * 1000).toISOString(),
+              },
+            ];
+
+      const enrolments = state.enrolments.map((e) => {
+        const u = uMap.get(e.userId);
+        const course = cat("en").courses.find((c) => c.id === e.courseId);
+        return {
+          id: e.id,
+          reference: e.reference,
+          courseTitle: course?.title || "Foundations of Ayurveda",
+          patientName: u?.name || "Student",
+          patientEmail: u?.email || "asha@example.com",
+          status: e.status,
+          amount: e.amount,
+          createdAt: e.createdAt,
+        };
+      });
+
+      const orders = state.orders.map((o) => {
+        const u = uMap.get(o.userId);
+        return {
+          id: o.id,
+          reference: o.reference,
+          status: o.status,
+          amount: o.amount,
+          patientName: o.contact?.name || u?.name || "Customer",
+          patientEmail: o.contact?.email || u?.email || "",
+          itemsSummary: o.items.map((i) => `${i.title} × ${i.quantity}`).join(", "),
+          fulfilment: o.fulfilment,
+          createdAt: o.createdAt,
+        };
+      });
+
+      return {
+        payments: state.payments.map((p) => ({
+          id: p.id,
+          reference: p.reference,
+          amount: p.amount,
+          purpose: p.purpose,
+          status: p.status,
+          payerName: p.payerName,
+          utr: p.utr,
+          createdAt: p.createdAt,
+        })),
+        appointments,
+        registrations,
+        enrolments,
+        orders,
+      };
     },
   };
 

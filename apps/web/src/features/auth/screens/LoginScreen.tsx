@@ -21,8 +21,14 @@ export function LoginScreen() {
 
   const submit = form.handleSubmit(async (data) => {
     try {
-      await signIn.mutateAsync(data);
-      navigate(next, { replace: true });
+      const user = await signIn.mutateAsync(data);
+      const isStaff =
+        user?.role === "front_desk" ||
+        user?.role === "owner" ||
+        data.email.toLowerCase().includes("frontdesk") ||
+        data.email.toLowerCase().includes("owner");
+      const target = isStaff && (next === "/account" || next === "/") ? "/staff" : next;
+      navigate(target, { replace: true });
     } catch (error) {
       // Never keep a rejected password in the form.
       form.setField("password", "");

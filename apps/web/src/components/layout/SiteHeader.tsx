@@ -55,6 +55,12 @@ export function SiteHeader() {
         ? t("Cart, {count} item", { count })
         : t("Cart, {count} items", { count });
 
+  const isStaff =
+    user?.role === "front_desk" ||
+    user?.role === "owner" ||
+    user?.email?.includes("frontdesk") ||
+    user?.email?.includes("owner");
+
   return (
     <header
       className={[
@@ -86,6 +92,11 @@ export function SiteHeader() {
 
         <div className={styles.actions}>
           <LanguageToggle className={styles.barLanguage} />
+          {isStaff ? (
+            <ButtonLink to="/staff" size="sm" variant="secondary">
+              {t("Staff")}
+            </ButtonLink>
+          ) : null}
           <Link
             to={user ? "/account" : "/login"}
             className={`${styles.iconLink} ${styles.accountLink}`}
@@ -146,6 +157,11 @@ export function SiteHeader() {
                 </NavLink>
               </li>
             ))}
+            {isStaff ? (
+              <li>
+                <NavLink to="/staff">{t("Staff Dashboard")}</NavLink>
+              </li>
+            ) : null}
             <li>
               <NavLink to={user ? "/account" : "/login"}>{user ? t("My account") : t("Log in / Register")}</NavLink>
             </li>
