@@ -24,6 +24,28 @@ tools let you sign in as a sample customer and act as clinic staff verifying a p
 `VITE_PREVIEW_UI=on` in `apps/web/.env.local`. The browser tests turn them on through
 `apps/web/.env.test` (`npm run build:test -w @sdw/web`).
 
+### Admin area (clinic owner)
+
+`npm run dev` includes a practice owner login, set in `apps/web/.env.development`:
+
+| Login ID              | Password          | Where                                                        |
+| --------------------- | ----------------- | ------------------------------------------------------------ |
+| `owner@sridurga.demo` | `demo-owner-2026` | Person icon → Log in. The owner goes straight to **/admin**. |
+
+It works in any browser or tab on your computer without registering. In the Admin area the owner
+checks UPI payments (verify, or "not found" with a reason), moves orders through packing → shipped /
+ready for pickup → completed (or cancels them), posts and edits live classes and their batches
+(dates, fees, seats, the private Google Meet link), and adds or edits shop products and recorded
+courses with their lessons (YouTube / Vimeo links).
+
+The sample data is kept in your browser and shared by all its tabs, while each tab keeps its own
+sign-in — so you can be a customer in one tab and the owner in another. Clear the site's data in the
+browser to start over.
+
+This login exists only on the built-in sample backend. Production builds don't read
+`.env.development`, and on the live site owner and staff accounts are created and checked by the
+backend server, with their own strong passwords — never with this one.
+
 Production build:
 
 ```bash
@@ -88,6 +110,8 @@ tokens), `apps/web` (Vite + React) and `apps/mobile` (Expo).
 ## Before launch
 
 - [ ] Backend connected and every endpoint in the contract marked **Confirmed**.
+- [ ] Owner account created on the backend with a new strong password (the practice login in
+      `apps/web/.env.development` works only on the sample backend).
 - [ ] `VITE_API_MODE=live` / `EXPO_PUBLIC_API_MODE=live` in production.
 - [ ] All sample content replaced by clinic-approved text, practitioners, prices, policies,
       contact details and photos (the sample banner disappears when `isSampleContent` is false).

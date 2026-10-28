@@ -1,0 +1,320 @@
+/* Admin area. Layout pieces (header band, side menu, list rows, tabs) come from the account area's
+   styles so the two feel like one site; this file adds what only staff screens need. */
+
+.headerRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.signedInAs {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.navCount {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+}
+
+.asideFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.asideFooter a {
+  font-size: var(--text-sm);
+}
+
+/* ── Overview ─────────────────────────────────────────────── */
+
+.stats {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--easing),
+    box-shadow var(--duration-fast) var(--easing);
+}
+
+.stat:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.statValue {
+  font-family: var(--font-serif);
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--color-heading);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.statLabel {
+  font-weight: 600;
+}
+
+.statHint {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.statAttention {
+  border-color: var(--color-warning);
+  background: linear-gradient(180deg, var(--color-warning-bg), var(--color-surface) 70%);
+}
+
+.statAttention .statValue {
+  color: var(--color-warning);
+}
+
+/* ── Lists and rows ───────────────────────────────────────── */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.filter {
+  min-width: min(100%, 15rem);
+}
+
+.mono {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.95em;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.utr {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-alt);
+  color: var(--color-heading);
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (max-width: 520px) {
+  .rowActions {
+    justify-content: flex-start;
+  }
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ── Forms ────────────────────────────────────────────────── */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.formGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+/* English and Tamil versions of a text side by side on wide screens. */
+.bilingual {
+  display: grid;
+  gap: var(--space-3) var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  align-items: start;
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.saved {
+  font-size: var(--text-sm);
+  color: var(--color-success);
+}
+
+/* ── Batches and lessons ──────────────────────────────────── */
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.subCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.subCardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.subCardTitle {
+  font-weight: 600;
+  color: var(--color-heading);
+  font-size: var(--text-lg);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.students {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.students li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--color-border-strong);
+}
+
+details.more > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+details.more[open] > summary {
+  margin-bottom: var(--space-2);
+}
+
+.lessonList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lessonRow {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lessonRow:last-child {
+  border-bottom: 0;
+}
+
+.lessonNo {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 520px) {
+  .lessonRow {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .lessonRow .rowActions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.timeline li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.timeline li::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}

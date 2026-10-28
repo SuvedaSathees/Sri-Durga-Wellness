@@ -21,4 +21,5 @@ export * from "./shop";
 export * from "./payments";
 export * from "./learning";
 export * from "./account";
+export * from "./admin";
 export * from "./format";

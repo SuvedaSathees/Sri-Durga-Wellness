@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
-import { useSession, useSignOut, useT } from "@sdw/controllers";
+import { useIsOwner, useSession, useSignOut, useT } from "@sdw/controllers";
 import { Button, Icon, type IconName } from "../../../components/ui";
 import styles from "../components/Account.module.css";
 
@@ -7,14 +7,8 @@ export function AccountLayout() {
   const t = useT();
   const { user } = useSession();
   const signOut = useSignOut();
-  const isStaff =
-    user?.role === "front_desk" ||
-    user?.role === "owner" ||
-    user?.email?.includes("frontdesk") ||
-    user?.email?.includes("owner");
-
+  const navigate = useNavigate();
   const nav: Array<{ to: string; label: string; icon: IconName; end?: boolean }> = [
-    ...(isStaff ? [{ to: "/staff", label: t("Staff Dashboard"), icon: "stethoscope" as IconName }] : []),
     { to: "/account", label: t("Overview"), icon: "leaf", end: true },
     { to: "/account/appointments", label: t("Appointments"), icon: "calendar" },
     { to: "/account/orders", label: t("Orders"), icon: "cart" },
@@ -24,6 +18,8 @@ export function AccountLayout() {
     { to: "/account/profile", label: t("Profile"), icon: "user" },
     { to: "/account/settings", label: t("Settings"), icon: "globe" },
   ];
+  const isOwner = useIsOwner();
+  if (isOwner) nav.unshift({ to: "/admin", label: t("Admin area"), icon: "activity" });
 
   // Leave the private area first, so the sign-in guard doesn't send the visitor to the login page.
   const logOut = () => {

@@ -25,6 +25,7 @@ be reused by a Node backend or read as the reference for any other stack.
 | [Live classes](#live-classes)              | list, detail, register for a batch                                          |
 | [Courses](#courses)                        | list, detail, lesson, enrol, mark lesson complete                           |
 | [Account](#account)                        | appointments, orders, payments, class registrations, renew a month, courses |
+| [Admin](#admin-clinic-owner)               | overview, check payments, orders, classes & batches, products, courses      |
 
 ---
 
@@ -98,21 +99,21 @@ Every non-2xx response has this body:
   validation messages lets the apps translate them; any other text is shown as-is.
 - `requestId` (also sent as the `X-Request-Id` header) helps support trace a problem.
 
-| Status                      | When                                                                          | Typical codes                                                                                                                                                       |
-| --------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `200 OK`                    | Success with a body                                                           |                                                                                                                                                                     |
-| `201 Created`               | Something was created                                                         |                                                                                                                                                                     |
-| `202 Accepted`              | Accepted for processing (forgot password)                                     |                                                                                                                                                                     |
-| `204 No Content`            | Success without a body                                                        |                                                                                                                                                                     |
-| `400 Bad Request`           | Malformed request or a token that can't be used                               | `VALIDATION_FAILED`, `RESET_TOKEN_INVALID`                                                                                                                          |
-| `401 Unauthorized`          | Missing / expired token, wrong credentials                                    | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`                                                                                                                            |
-| `403 Forbidden`             | Signed in but not allowed                                                     | `FORBIDDEN`, `NOT_ENROLLED`                                                                                                                                         |
-| `404 Not Found`             | Unknown resource **or** someone else's resource (never reveal that it exists) | `NOT_FOUND`                                                                                                                                                         |
-| `409 Conflict`              | Business rule conflict                                                        | `EMAIL_TAKEN`, `SLOT_TAKEN`, `TOO_LATE_TO_CANCEL`, `OUT_OF_STOCK`, `DUPLICATE_UTR`, `PAYMENT_NOT_PAYABLE`, `BATCH_CLOSED`, `ALREADY_REGISTERED`, `ALREADY_ENROLLED` |
-| `422 Unprocessable Entity`  | Field validation failed                                                       | `VALIDATION_FAILED`                                                                                                                                                 |
-| `429 Too Many Requests`     | Rate limit (send `Retry-After`)                                               | `RATE_LIMITED`                                                                                                                                                      |
-| `500 Internal Server Error` | Unexpected failure                                                            | `SERVER_ERROR`                                                                                                                                                      |
-| `503 Service Unavailable`   | Feature not configured / maintenance                                          | `PAYMENTS_NOT_CONFIGURED`, `SERVICE_UNAVAILABLE`                                                                                                                    |
+| Status                      | When                                                                          | Typical codes                                                                                                                                                                                                                                 |
+| --------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `200 OK`                    | Success with a body                                                           |                                                                                                                                                                                                                                               |
+| `201 Created`               | Something was created                                                         |                                                                                                                                                                                                                                               |
+| `202 Accepted`              | Accepted for processing (forgot password)                                     |                                                                                                                                                                                                                                               |
+| `204 No Content`            | Success without a body                                                        |                                                                                                                                                                                                                                               |
+| `400 Bad Request`           | Malformed request or a token that can't be used                               | `VALIDATION_FAILED`, `RESET_TOKEN_INVALID`                                                                                                                                                                                                    |
+| `401 Unauthorized`          | Missing / expired token, wrong credentials                                    | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`                                                                                                                                                                                                      |
+| `403 Forbidden`             | Signed in but not allowed                                                     | `FORBIDDEN`, `NOT_ENROLLED`                                                                                                                                                                                                                   |
+| `404 Not Found`             | Unknown resource **or** someone else's resource (never reveal that it exists) | `NOT_FOUND`                                                                                                                                                                                                                                   |
+| `409 Conflict`              | Business rule conflict                                                        | `EMAIL_TAKEN`, `SLOT_TAKEN`, `TOO_LATE_TO_CANCEL`, `OUT_OF_STOCK`, `DUPLICATE_UTR`, `PAYMENT_NOT_PAYABLE`, `BATCH_CLOSED`, `ALREADY_REGISTERED`, `ALREADY_ENROLLED`, `PAYMENT_ALREADY_CHECKED`, `INVALID_STATUS_CHANGE`, `BATCH_HAS_STUDENTS` |
+| `422 Unprocessable Entity`  | Field validation failed                                                       | `VALIDATION_FAILED`                                                                                                                                                                                                                           |
+| `429 Too Many Requests`     | Rate limit (send `Retry-After`)                                               | `RATE_LIMITED`                                                                                                                                                                                                                                |
+| `500 Internal Server Error` | Unexpected failure                                                            | `SERVER_ERROR`                                                                                                                                                                                                                                |
+| `503 Service Unavailable`   | Feature not configured / maintenance                                          | `PAYMENTS_NOT_CONFIGURED`, `SERVICE_UNAVAILABLE`                                                                                                                                                                                              |
 
 The client retries `GET` requests on network errors and `502/503/504` (up to twice, with back-off);
 it never retries `POST`/`PATCH`/`PUT` automatically.
@@ -180,10 +181,14 @@ Response `201` (`AuthSession`):
     "email": "asha@example.com",
     "phone": "+919876543210",
     "locale": "en",
+    "role": "CUSTOMER",
     "createdAt": "2026-10-18T07:00:00.000Z"
   }
 }
 ```
+
+`role` is always `CUSTOMER` for registration. The clinic owner's account (`role: "OWNER"`) is created
+on the server only — see [Admin](#admin-clinic-owner).
 
 `refreshToken` is present only for `X-Client-Platform: ios|android`; web gets the `sdw_refresh`
 cookie instead.
@@ -1064,9 +1069,327 @@ Response `200` (`MyCourse[]`):
 
 ---
 
+## Admin (clinic owner)
+
+The Admin area on the website (`/admin`) uses these endpoints. Every one is **Auth: required, owner
+only**: the server must answer `403 FORBIDDEN` to any signed-in user whose `role` is not `OWNER`,
+and must not rely on the app hiding the screens. Responses contain customers' contact details and
+full UPI references, so they must not be cached by proxies (`Cache-Control: no-store`).
+
+How owner accounts are created is the backend's choice (for example a seed script that reads the
+owner's email and a strong password from server configuration, as the first version of the site
+does with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). Registration never creates one, and no owner password
+belongs in either app. The mock backend creates a practice owner login only when the web app passes
+one in from its development settings file (`apps/web/.env.development`).
+
+Admin bodies use `Bilingual` text — `{ "en": "Morning Yoga Flow", "ta": "காலை யோகா" }` — with
+`ta: null` when there is no Tamil version yet (Tamil visitors then see the English). Public endpoints
+keep returning one language, chosen by `Accept-Language`.
+
+`PATCH` bodies may contain any subset of the fields; the server lays them over the current values
+and validates the result as a whole (so rules such as "MRP ≥ price" still hold). The apps send the
+whole form. Validation rules for every body are the `*InputSchema` / `lessonSchema` /
+`orderStatusSchema` / `rejectPaymentSchema` / `verifyPaymentSchema` schemas in
+`packages/core/src/validation`.
+
+### `GET /admin/overview`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200` (`AdminOverview`):
+`{ "paymentsToCheck": 2, "ordersToPrepare": 1, "upcomingBatches": 6, "lowStockProducts": 0 }` —
+submitted UPI payments not yet checked; orders in `CONFIRMED` or `PROCESSING`; batches that haven't
+started; published products with 5 or fewer in stock.
+
+### `GET /admin/payments`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Query: `status` (optional `PaymentStatus`). With `status=SUBMITTED` the list is oldest first (check
+in the order customers paid); otherwise newest first.
+
+Response `200` (`AdminPayment[]`):
+
+```json
+[
+  {
+    "id": "pay_1",
+    "purpose": "ORDER",
+    "reference": "ORD-THVESQ",
+    "amount": 76000,
+    "status": "SUBMITTED",
+    "description": "Order ORD-THVESQ",
+    "utr": "412356789012",
+    "payerName": "Asha Rao",
+    "customer": { "name": "Asha Rao", "email": "asha@example.com", "phone": "+919876543210" },
+    "createdAt": "…",
+    "submittedAt": "…",
+    "verifiedAt": null,
+    "rejectionReason": null
+  }
+]
+```
+
+Unlike the customer's own `Payment` (which shows only the last 4 characters), `utr` is the full
+reference, so staff can find it in the bank statement.
+
+### `POST /admin/payments/:paymentId/verification`
+
+Status: **Proposed** · Auth: required (owner only)
+
+A person has found the payment in the clinic's bank statement. Request:
+`{ "foundInBankStatement": true }` (required — a reminder that a screenshot or the customer's word is
+not proof). Moves the payment to `VERIFIED` and what it pays for to its confirmed state: the order to
+`CONFIRMED`, the class seat to `CONFIRMED` (Meet link now included for that customer), the course
+enrolment to `ACTIVE` (access period starts now), or the next month of a monthly class onto
+`paidUntil`. The server should record who verified it and when.
+
+Response `200`: the updated `AdminPayment`. Errors: `409 PAYMENT_ALREADY_CHECKED` (not `SUBMITTED`
+any more — another staff member checked it), `422`, `404`.
+
+### `POST /admin/payments/:paymentId/rejection`
+
+Status: **Proposed** · Auth: required (owner only)
+
+The payment could not be found. Request: `{ "reason": "We couldn't find this reference. Please check the 12-digit number." }`
+(5–300 characters; shown to the customer). Moves the payment to `REJECTED`; the customer can submit a
+corrected UPI reference. The order's payment window or the class seat hold is extended by 24 hours.
+
+Response `200`: the updated `AdminPayment`. Errors: `409 PAYMENT_ALREADY_CHECKED`, `422`, `404`.
+
+### `GET /admin/orders`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Query: `status` (optional `OrderStatus`), `page`, `pageSize`. Response `200`:
+`Paginated<AdminOrderSummary>` — `OrderSummary` plus `customerName`, `fulfilment` and
+`paymentStatus`, newest first.
+
+### `GET /admin/orders/:reference`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200` (`AdminOrder`): the `Order` (see `POST /orders`) plus `customer` (the account holder's
+name, email, phone) and `nextStatuses` — the statuses staff may move it to now:
+
+| Current status                      | `nextStatuses`                                                   |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| `PENDING_PAYMENT`                   | `CANCELLED`                                                      |
+| `PAYMENT_SUBMITTED`                 | none — check the payment first                                   |
+| `CONFIRMED`                         | `PROCESSING`, `CANCELLED`                                        |
+| `PROCESSING`                        | `SHIPPED` (delivery) or `READY_FOR_PICKUP` (pickup), `CANCELLED` |
+| `SHIPPED`, `READY_FOR_PICKUP`       | `COMPLETED`                                                      |
+| `COMPLETED`, `CANCELLED`, `EXPIRED` | none                                                             |
+
+Errors: `404`.
+
+### `POST /admin/orders/:reference/status-changes`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request (`UpdateOrderStatusRequest`):
+`{ "status": "SHIPPED", "trackingInfo": "India Post EK123456789IN", "note": "Packed with care" }` —
+`note` (optional, ≤ 300) and `trackingInfo` (optional, ≤ 160, kept for `SHIPPED`) are shown to the
+customer; the order's `events` get a new entry (with a default note when none is given).
+Cancelling returns the items to stock and cancels an unpaid payment. A **verified** payment stays
+verified: the website never refunds — the clinic refunds from its bank account.
+
+Response `200`: the updated `AdminOrder`. Errors: `409 INVALID_STATUS_CHANGE` (not in
+`nextStatuses`), `422`, `404`.
+
+### `GET /admin/classes`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200` (`AdminClassSummary[]`): every class, hidden ones included —
+`{ "id", "slug", "title", "feeType", "fee", "isPublished", "isSample", "batchCount", "nextBatchStartsAt", "confirmedStudents" }`.
+
+### `POST /admin/classes`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request (`ClassInput`):
+
+```json
+{
+  "title": { "en": "Evening Pranayama", "ta": "மாலை பிராணாயாமம்" },
+  "summary": { "en": "Gentle breathing practice after work.", "ta": null },
+  "description": { "en": "", "ta": null },
+  "level": "BEGINNER",
+  "language": { "en": "Tamil and English", "ta": null },
+  "feeType": "MONTHLY",
+  "fee": 120000,
+  "instructorName": null,
+  "isPublished": true
+}
+```
+
+The server creates the `slug` from the English title. Response `201`: `AdminClass` (the input plus
+`id`, `slug`, `isSample` and `batches: AdminBatch[]`). Errors: `422`.
+
+### `GET /admin/classes/:classId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200` (`AdminClass`), with every batch as `AdminBatch`:
+`{ "id", "name", "startsAt", "durationMinutes", "sessionsCount", "scheduleNote", "seatLimit", "registrationOpen", "meetingUrl", "price", "students": [{ "registrationId", "reference", "status", "name", "phone", "email", "createdAt" }] }`.
+`meetingUrl` is the private Google Meet link — returned here and in a confirmed student's own
+registration, never on public endpoints. Errors: `404`.
+
+### `PATCH /admin/classes/:classId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request: any `ClassInput` fields. Changing the fee affects new registrations only; existing ones
+keep the amount they registered for. `isPublished: false` hides the class from `GET /classes` and
+new registrations; customers who already registered keep seeing it. Response `200`: `AdminClass`.
+Errors: `422`, `404`.
+
+### `POST /admin/classes/:classId/batches`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request (`BatchInput`):
+
+```json
+{
+  "name": "November batch",
+  "startsAt": "2026-11-03T13:00:00.000Z",
+  "durationMinutes": 45,
+  "sessionsCount": 12,
+  "scheduleNote": "Mon, Wed, Fri · 6:30–7:15 PM",
+  "seatLimit": null,
+  "registrationOpen": true,
+  "meetingUrl": "https://meet.google.com/abc-defg-hij"
+}
+```
+
+`startsAt` must be in the future; `durationMinutes` 15–60 (the free Google Meet limit);
+`sessionsCount` 1–200 (sessions per month for `MONTHLY` classes); `seatLimit` null or 1–1000;
+`meetingUrl` null or an `https://meet.google.com/…` link. Response `201`: the updated `AdminClass`.
+Errors: `422` (`fieldErrors.startsAt`, …), `404`.
+
+### `PATCH /admin/class-batches/:batchId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request: any `BatchInput` fields (a past `startsAt` is allowed when correcting a batch). Closing
+registration (`registrationOpen: false`) keeps existing students. Response `200`: the updated
+`AdminClass`. Errors: `422`, `404`.
+
+### `DELETE /admin/class-batches/:batchId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Only for batches with no students (registrations other than cancelled or expired). Response `204`.
+Errors: `409 BATCH_HAS_STUDENTS` (close registration instead), `404`.
+
+### `GET /admin/products`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200` (`AdminProductSummary[]`): every product, hidden ones included —
+`{ "id", "slug", "name", "categoryName", "size", "price", "stock", "isPublished", "isSample" }`.
+
+### `POST /admin/products`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request (`ProductInput`):
+
+```json
+{
+  "name": { "en": "Tulsi Ginger Tea", "ta": null },
+  "categoryId": "cat_herbal-teas",
+  "size": "100 g",
+  "price": 24000,
+  "mrp": 28000,
+  "stock": 12,
+  "isFeatured": false,
+  "isPublished": true,
+  "shortDescription": { "en": "A warming blend for winter mornings.", "ta": null },
+  "description": { "en": "", "ta": null }
+}
+```
+
+`price` ≥ ₹1; `mrp` null or ≥ `price`; `stock` 0–100000 (the number available to sell now);
+`categoryId` null or an id from `GET /product-categories`. Photos are added on the server (not part of
+this body yet). Response `201`: `AdminProduct` (the input plus `id`, `slug`, `isSample`).
+Errors: `422` (`fieldErrors.categoryId` "Choose a category", `fieldErrors.mrp`, …).
+
+### `GET /admin/products/:productId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200`: `AdminProduct`. Errors: `404`.
+
+### `PATCH /admin/products/:productId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request: any `ProductInput` fields. `isPublished: false` removes the product from the shop and from
+cart quotes (`UNAVAILABLE`); existing orders are unaffected. Response `200`: `AdminProduct`.
+Errors: `422`, `404`.
+
+### `GET /admin/courses`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200` (`AdminCourseSummary[]`):
+`{ "id", "slug", "title", "price", "accessDays", "lessonCount", "activeStudents", "isPublished", "isSample" }`.
+
+### `POST /admin/courses`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request (`CourseInput`):
+`{ "title": Bilingual, "summary": Bilingual, "description": Bilingual, "level": "ALL_LEVELS", "price": 49900, "accessDays": 365, "isPublished": true }`
+— `accessDays` null for lifetime access, else 1–3650. Response `201`: `AdminCourse` (plus `id`,
+`slug`, `isSample`, `lessons: []`). Errors: `422`.
+
+### `GET /admin/courses/:courseId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Response `200` (`AdminCourse`) with `lessons: AdminLesson[]` —
+`{ "id", "position", "title": Bilingual, "durationMinutes", "isFreePreview", "notes": Bilingual, "videoUrl" }`.
+Errors: `404`.
+
+### `PATCH /admin/courses/:courseId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request: any `CourseInput` fields. A hidden course leaves `GET /courses` and can't be enrolled in;
+enrolled students keep access. Response `200`: `AdminCourse`. Errors: `422`, `404`.
+
+### `POST /admin/courses/:courseId/lessons`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request (`LessonInput`):
+`{ "title": { "en": "Welcome", "ta": null }, "durationMinutes": 5, "isFreePreview": true, "notes": { "en": "Start here.", "ta": null }, "videoUrl": "https://youtu.be/…" }`
+— `videoUrl` null or a YouTube / Vimeo link. The lesson endpoint returns it to viewers with access as
+`video: { provider, embedUrl }` (YouTube via `youtube-nocookie.com`). New lessons go to the end.
+Response `201`: the updated `AdminCourse`. Errors: `422` (`fieldErrors.videoUrl`), `404`.
+
+### `PATCH /admin/lessons/:lessonId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Request: any `LessonInput` fields. Response `200`: the updated `AdminCourse`. Errors: `422`, `404`.
+
+### `DELETE /admin/lessons/:lessonId`
+
+Status: **Proposed** · Auth: required (owner only)
+
+Removes the lesson; the remaining lessons are renumbered. Response `204`. Errors: `404`.
+
+---
+
 ## Change log
 
-| Date       | Change                                                                                                                                                                                                                                                                 |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-10-18 | First proposal, derived from the Sri Durga Wellness website's features. All endpoints proposed.                                                                                                                                                                        |
-| 2026-10-18 | Clinic decisions: class `feeType` + `batch.price`, monthly renewals (new `POST /me/class-registrations/:id/renewals`, payment purpose `CLASS_RENEWAL`), `GET /site` → `shop.deliversAllIndia`, `consultation`, `payments.checksPerDay`; service prices hidden; no GST. |
+| Date       | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-18 | First proposal, derived from the Sri Durga Wellness website's features. All endpoints proposed.                                                                                                                                                                                                                                                                                                                                                                                            |
+| 2026-10-19 | Admin area: `User.role` (`CUSTOMER` / `OWNER`), new owner-only `/admin/*` endpoints (overview, payment verification and rejection, orders and status changes, classes and batches with the private Meet link, products, courses and lessons), `Order.trackingInfo` filled from `SHIPPED`, lesson `video` from YouTube / Vimeo links, hidden (`isPublished: false`) classes / products / courses, new error codes `PAYMENT_ALREADY_CHECKED`, `INVALID_STATUS_CHANGE`, `BATCH_HAS_STUDENTS`. |
+| 2026-10-18 | Clinic decisions: class `feeType` + `batch.price`, monthly renewals (new `POST /me/class-registrations/:id/renewals`, payment purpose `CLASS_RENEWAL`), `GET /site` → `shop.deliversAllIndia`, `consultation`, `payments.checksPerDay`; service prices hidden; no GST.                                                                                                                                                                                                                     |

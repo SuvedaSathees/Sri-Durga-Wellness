@@ -5,6 +5,7 @@
  * `npm test` fails if any t("…") string in either app has no Tamil entry.
  */
 import { account } from "./account";
+import { admin } from "./admin";
 import { auth } from "./auth";
 import { booking } from "./booking";
 import { common } from "./common";
@@ -26,4 +27,5 @@ export const TA: Record<string, string> = {
   ...account,
   ...auth,
   ...content,
+  ...admin,
 };

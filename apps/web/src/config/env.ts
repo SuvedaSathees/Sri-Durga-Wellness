@@ -25,3 +25,14 @@ export function readWebConfig(): AppConfig {
 export function readPreviewUi(): boolean {
   return import.meta.env.MODE === "test" && import.meta.env.VITE_PREVIEW_UI === "on";
 }
+
+/**
+ * Mock mode only: a clinic-owner login for trying the Admin area, read from the development
+ * settings file (apps/web/.env.development, used by `npm run dev`). Production builds don't read
+ * that file, and the live site checks staff logins on the server — this login never works there.
+ */
+export function readMockOwnerLogin(): { email: string; password: string } | null {
+  const email = import.meta.env.VITE_MOCK_OWNER_EMAIL?.trim();
+  const password = import.meta.env.VITE_MOCK_OWNER_PASSWORD ?? "";
+  return email && password.length >= 8 ? { email, password } : null;
+}

@@ -5,6 +5,7 @@
 | Shared logic, validation, formatters, i18n               | `packages/core/tests`                       | Node test runner + tsx                   | `npm test`          |
 | API client (headers, refresh, retries, errors)           | `packages/core/tests/client.test.ts`        | Node test runner, scripted Axios adapter | `npm test`          |
 | Customer journeys through the real client + mock backend | `packages/core/tests/mock-journeys.test.ts` | Node test runner                         | `npm test`          |
+| Admin area rules (owner only, payment checks, orders, …) | `packages/core/tests/admin.test.ts`         | Node test runner                         | `npm test`          |
 | Controllers (booking flow, cart store, forms)            | `packages/controllers/tests`                | Node test runner                         | `npm test`          |
 | Design tokens (contrast, generated CSS)                  | `packages/tokens/tests`                     | Node test runner                         | `npm test`          |
 | Architecture rules                                       | `tests/architecture.test.ts`                | Node test runner                         | `npm test`          |
@@ -36,7 +37,8 @@ npm run test:e2e
 
 `BASE_URL` points the tests elsewhere (e.g. a staging deployment). Each test opens a fresh browser
 context, so it starts with an empty mock backend. Tests that need a signed-in customer or a
-verified payment use the **Demo tools** panel, which exists only in mock mode.
+verified payment use the **Demo tools** panel, which exists only in mock mode. The Admin area tests
+(`admin.test.mjs`) sign in with the practice owner login from `apps/web/.env.test`.
 
 ## Mobile
 

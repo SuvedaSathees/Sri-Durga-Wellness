@@ -4,8 +4,8 @@
  */
 import { createRuntime, loadInitialLocale, type AppRuntime } from "@sdw/controllers";
 import { createTokenStore } from "@sdw/core/api";
-import { readPreviewUi, readWebConfig } from "../config/env";
-import { mockSessionStorage, preferences } from "../platform/storage";
+import { readMockOwnerLogin, readPreviewUi, readWebConfig } from "../config/env";
+import { mockSharedStorage, mockTabStorage, preferences } from "../platform/storage";
 
 export async function createWebRuntime(): Promise<AppRuntime> {
   const config = readWebConfig();
@@ -17,14 +17,20 @@ export async function createWebRuntime(): Promise<AppRuntime> {
   if (config.apiMode === "mock") {
     // Loaded on demand, so the sample backend is not part of a live build's main bundle.
     const { createMockApi } = await import("@sdw/core/mocks");
-    const mock = createMockApi({ latencyMs: config.mockLatencyMs, persistence: mockSessionStorage });
+    const owner = readMockOwnerLogin();
+    const mock = createMockApi({
+      latencyMs: config.mockLatencyMs,
+      persistence: mockSharedStorage,
+      tabPersistence: mockTabStorage,
+      staff: owner ? [{ ...owner, name: "Clinic owner" }] : [],
+    });
     return createRuntime({
       config,
       tokenStore,
       preferences,
       initialLocale,
       adapter: mock.adapter,
-      demo: mock.controls,
+      demo: readPreviewUi() ? mock.controls : null,
     });
   }
   return createRuntime({ config, tokenStore, preferences, initialLocale });

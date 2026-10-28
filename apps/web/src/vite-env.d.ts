@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_API_TIMEOUT_MS?: string;
   readonly VITE_MOCK_LATENCY_MS?: string;
   readonly VITE_PREVIEW_UI?: string;
+  readonly VITE_MOCK_OWNER_EMAIL?: string;
+  readonly VITE_MOCK_OWNER_PASSWORD?: string;
 }
 
 interface ImportMeta {

@@ -12,6 +12,7 @@ import {
   ERROR_MESSAGES,
   FULFILMENT_LABEL,
   LEVEL_LABEL,
+  ORDER_ACTION_LABEL,
   ORDER_STATUS,
   PAYMENT_PURPOSE_LABEL,
   PAYMENT_STATUS,
@@ -54,6 +55,7 @@ const tables: Record<string, Record<string, { label: string; description?: strin
   PERIOD_LABEL,
   BATCH_CLOSED_LABEL,
   BOOKING_STEP_LABEL,
+  ORDER_ACTION_LABEL: ORDER_ACTION_LABEL as Record<string, string>,
 };
 
 /** Validation messages from packages/core/src/validation (literal messages and the labels used in templates). */

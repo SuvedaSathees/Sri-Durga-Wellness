@@ -13,22 +13,19 @@ export function LoginScreen() {
   const [params] = useSearchParams();
   const next = safeNext(params.get("next"));
   const navigate = useNavigate();
-  const { status } = useSession();
+  const { status, user } = useSession();
   const signIn = useSignIn();
   const form = useForm(loginSchema, { email: "", password: "" });
+  // The clinic owner lands in the Admin area unless they were on their way somewhere else.
+  const landing = (role: string | undefined) => (role === "OWNER" && !params.get("next") ? "/admin" : next);
 
-  if (status === "signedIn" && !signIn.isPending && !signIn.isSuccess) return <Navigate to={next} replace />;
+  if (status === "signedIn" && !signIn.isPending && !signIn.isSuccess)
+    return <Navigate to={landing(user?.role)} replace />;
 
   const submit = form.handleSubmit(async (data) => {
     try {
-      const user = await signIn.mutateAsync(data);
-      const isStaff =
-        user?.role === "front_desk" ||
-        user?.role === "owner" ||
-        data.email.toLowerCase().includes("frontdesk") ||
-        data.email.toLowerCase().includes("owner");
-      const target = isStaff && (next === "/account" || next === "/") ? "/staff" : next;
-      navigate(target, { replace: true });
+      const signedIn = await signIn.mutateAsync(data);
+      navigate(landing(signedIn.role), { replace: true });
     } catch (error) {
       // Never keep a rejected password in the form.
       form.setField("password", "");

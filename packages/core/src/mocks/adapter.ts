@@ -14,12 +14,18 @@ import {
 import type { ClientPlatform } from "../config";
 import { allEndpoints } from "../api/endpoints";
 import { isLocale } from "../i18n/config";
-import { createMockBackend, type MockBackend, type MockControls, type MockState } from "./backend";
+import { createMockBackend, type MockBackend, type MockControls, type MockStaffLogin, type MockState } from "./backend";
 import { compilePath, MockHttpError, type MockResponse } from "./http";
 
 const routes = allEndpoints.map((endpoint) => ({ endpoint, match: compilePath(endpoint.path) }));
 
-/** Optional place to keep mock data between page loads (web: sessionStorage). */
+/**
+ * Optional place to keep mock data between page loads.
+ * - `persistence`: the sample data (web: localStorage, shared by every tab of the browser, so a
+ *   customer's order placed in one tab shows up in the Admin area open in another).
+ * - `tabPersistence`: who is signed in (web: sessionStorage), so each tab can be signed in as a
+ *   different person — handy for testing as a customer and as the clinic owner side by side.
+ */
 export type MockPersistence = { load(): string | null; save(value: string): void };
 
 export type MockApi = { adapter: AxiosAdapter; controls: MockControls; backend: MockBackend };
@@ -53,32 +59,79 @@ function wait(ms: number, signal: InternalAxiosRequestConfig["signal"]): Promise
   });
 }
 
-function loadState(persistence: MockPersistence | undefined): MockState | undefined {
+function parseState(raw: string | null | undefined): MockState | undefined {
   try {
-    const raw = persistence?.load();
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as MockState;
-    return parsed && parsed.version === 2 ? parsed : undefined;
+    return parsed && parsed.version === 3 ? parsed : undefined;
   } catch {
     return undefined;
   }
 }
 
 export function createMockApi(
-  options: { latencyMs?: number; persistence?: MockPersistence; now?: () => Date } = {},
+  options: {
+    latencyMs?: number;
+    persistence?: MockPersistence;
+    tabPersistence?: MockPersistence;
+    /** Development-only staff logins (see apps/web/.env.development). */
+    staff?: MockStaffLogin[];
+    now?: () => Date;
+  } = {},
 ): MockApi {
-  const { latencyMs = 0, persistence, now = () => new Date() } = options;
-  const backend = createMockBackend({
-    now,
-    initialState: loadState(persistence),
-    onChange: (state) => {
+  const { latencyMs = 0, persistence, tabPersistence, staff, now = () => new Date() } = options;
+  /** The last data string this tab read or wrote — another tab has saved when storage differs. */
+  let lastRaw: string | null = null;
+
+  const read = (): MockState | undefined => {
+    let raw: string | null = null;
+    try {
+      raw = persistence?.load() ?? null;
+    } catch {
+      raw = null;
+    }
+    lastRaw = raw;
+    const state = parseState(raw);
+    if (state && tabPersistence) {
       try {
-        persistence?.save(JSON.stringify(state));
+        state.webRefreshCookie = tabPersistence.load() || null;
       } catch {
-        // storage full or blocked — the mock keeps working in memory
+        state.webRefreshCookie = null;
       }
-    },
-  });
+    }
+    return state;
+  };
+
+  const write = (state: MockState) => {
+    try {
+      if (tabPersistence) {
+        // The simulated sign-in cookie belongs to this tab only.
+        tabPersistence.save(state.webRefreshCookie ?? "");
+        lastRaw = JSON.stringify({ ...state, webRefreshCookie: null });
+      } else {
+        lastRaw = JSON.stringify(state);
+      }
+      persistence?.save(lastRaw);
+    } catch {
+      // storage full or blocked — the mock keeps working in memory
+    }
+  };
+
+  const backend = createMockBackend({ now, initialState: read(), onChange: write, staff });
+
+  /** Pick up anything another tab saved since this tab last looked. */
+  const syncFromOtherTabs = () => {
+    if (!persistence) return;
+    let raw: string | null = null;
+    try {
+      raw = persistence.load();
+    } catch {
+      return;
+    }
+    if (!raw || raw === lastRaw) return;
+    const state = read();
+    if (state) backend.replaceState(state);
+  };
 
   const adapter: AxiosAdapter = async (config) => {
     if (latencyMs > 0) await wait(latencyMs, config.signal);
@@ -94,6 +147,7 @@ export function createMockApi(
 
     let response: MockResponse;
     const route = routes.find((r) => r.endpoint.method === method && r.match(path));
+    syncFromOtherTabs();
     try {
       if (!route) throw new MockHttpError(404, "NOT_FOUND", `No endpoint ${method} ${path} in the API contract`);
       const token = headers.authorization?.replace(/^Bearer\s+/i, "") ?? null;

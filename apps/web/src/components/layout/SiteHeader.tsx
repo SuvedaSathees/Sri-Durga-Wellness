@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router";
-import { useCart, useSession, useSite, useT } from "@sdw/controllers";
+import { useCart, useIsOwner, useSession, useSite, useT } from "@sdw/controllers";
 import { ButtonLink, Icon } from "../ui";
 import { LanguageToggle } from "./LanguageToggle";
 import { MAIN_NAV } from "./navigation";
@@ -23,7 +23,11 @@ function Brand() {
 export function SiteHeader() {
   const t = useT();
   const { user } = useSession();
+  const isOwner = useIsOwner();
   const { count } = useCart();
+  // The clinic owner's person icon and main button lead to the Admin area (the role comes from the
+  // server; the server also checks it on every /admin call).
+  const accountHref = isOwner ? "/admin" : user ? "/account" : "/login";
   const [menuOpen, setMenuOpen] = useState(false);
   const drawer = useRef<HTMLDialogElement>(null);
   const location = useLocation();
@@ -54,12 +58,6 @@ export function SiteHeader() {
       : count === 1
         ? t("Cart, {count} item", { count })
         : t("Cart, {count} items", { count });
-
-  const isStaff =
-    user?.role === "front_desk" ||
-    user?.role === "owner" ||
-    user?.email?.includes("frontdesk") ||
-    user?.email?.includes("owner");
 
   return (
     <header
@@ -92,15 +90,12 @@ export function SiteHeader() {
 
         <div className={styles.actions}>
           <LanguageToggle className={styles.barLanguage} />
-          {isStaff ? (
-            <ButtonLink to="/staff" size="sm" variant="secondary">
-              {t("Staff")}
-            </ButtonLink>
-          ) : null}
           <Link
-            to={user ? "/account" : "/login"}
+            to={accountHref}
             className={`${styles.iconLink} ${styles.accountLink}`}
-            aria-label={user ? t("My account ({name})", { name: user.name }) : t("Log in")}
+            aria-label={
+              isOwner ? t("Admin area") : user ? t("My account ({name})", { name: user.name }) : t("Log in")
+            }
           >
             <Icon name="user" size={22} />
           </Link>
@@ -112,9 +107,15 @@ export function SiteHeader() {
               </span>
             ) : null}
           </Link>
-          <ButtonLink to="/book" size="sm" className={styles.book}>
-            {t("Book Appointment")}
-          </ButtonLink>
+          {isOwner ? (
+            <ButtonLink to="/admin" size="sm" className={styles.book}>
+              {t("Admin area")}
+            </ButtonLink>
+          ) : (
+            <ButtonLink to="/book" size="sm" className={styles.book}>
+              {t("Book Appointment")}
+            </ButtonLink>
+          )}
           <button
             type="button"
             className={styles.menuButton}
@@ -157,13 +158,10 @@ export function SiteHeader() {
                 </NavLink>
               </li>
             ))}
-            {isStaff ? (
-              <li>
-                <NavLink to="/staff">{t("Staff Dashboard")}</NavLink>
-              </li>
-            ) : null}
             <li>
-              <NavLink to={user ? "/account" : "/login"}>{user ? t("My account") : t("Log in / Register")}</NavLink>
+              <NavLink to={accountHref}>
+                {isOwner ? t("Admin area") : user ? t("My account") : t("Log in / Register")}
+              </NavLink>
             </li>
           </ul>
         </nav>

@@ -1,5 +1,6 @@
 import type { ApiClient } from "../client";
 import { createAccountService } from "./account";
+import { createAdminService } from "./admin";
 import { createAuthService } from "./auth";
 import { createBookingService } from "./booking";
 import { createCatalogService } from "./catalog";
@@ -20,11 +21,13 @@ export function createServices(api: ApiClient) {
     classes: createClassesService(api),
     courses: createCoursesService(api),
     account: createAccountService(api),
+    admin: createAdminService(api),
   };
 }
 
 export type Services = ReturnType<typeof createServices>;
 export type * from "./account";
+export type * from "./admin";
 export type * from "./auth";
 export type * from "./booking";
 export type * from "./catalog";

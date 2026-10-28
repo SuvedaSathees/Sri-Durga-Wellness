@@ -5,10 +5,23 @@
  * same rules the real backend must: server-side validation, ownership checks, stock reservation,
  * payment states that only staff can move to VERIFIED, private meeting links, locked lessons.
  *
- * Nothing here is a real person, address, UPI ID or credential. There is no built-in account —
- * register one in the app (data lives only in memory / the browser session).
+ * Nothing here is a real person, address, UPI ID or credential. There is no built-in customer
+ * account — register one in the app. A clinic-owner login for trying the Admin area exists only when
+ * the app passes one in (`staff`, from the web app's development settings file).
  */
 import type {
+  AdminBatch,
+  AdminClass,
+  AdminClassSummary,
+  AdminCourse,
+  AdminCourseSummary,
+  AdminCustomer,
+  AdminOrder,
+  AdminOrderSummary,
+  AdminOverview,
+  AdminPayment,
+  AdminProduct,
+  AdminProductSummary,
   Appointment,
   AuthSession,
   Availability,
@@ -52,9 +65,18 @@ import { endpoints } from "../api/endpoints";
 import { addDaysToKey, clinicTimeToUtc, isDateKey, weekdayOfKey } from "../logic/dates";
 import { idempotencyKey } from "../logic/misc";
 import { batchPrice } from "../logic/money";
+import { nextOrderStatuses, videoEmbed } from "../logic/admin";
 import {
   addressSchema,
+  batchInputSchema,
+  classInputSchema,
   consultationSchema,
+  courseInputSchema,
+  lessonSchema,
+  orderStatusSchema,
+  productInputSchema,
+  rejectPaymentSchema,
+  verifyPaymentSchema,
   contactDetailsSchema,
   contactSchema,
   emailField,
@@ -65,6 +87,22 @@ import {
   utrSubmissionSchema,
   validate,
 } from "../validation";
+import {
+  classRec,
+  courseRec,
+  moveSampleSchedule,
+  pick,
+  productRec,
+  retext,
+  seedEditable,
+  slugify,
+  type EditableCatalog,
+  type StoredBatch,
+  type StoredClass,
+  type StoredCourse,
+  type StoredLesson,
+  type StoredProduct,
+} from "./editable";
 import { z } from "zod";
 import {
   buildCatalog,
@@ -78,6 +116,7 @@ import {
 import {
   accepted,
   created,
+  forbidden,
   invalid,
   MockHttpError,
   noContent,
@@ -126,6 +165,7 @@ type OrderRec = {
   paymentDueAt: string;
   paymentId: string;
   events: OrderEvent[];
+  trackingInfo: string | null;
 };
 type PaymentRec = {
   id: string;
@@ -142,6 +182,8 @@ type PaymentRec = {
   verifiedAt: string | null;
   rejectionReason: string | null;
   createdAt: string;
+  /** Staff member who verified or rejected it. */
+  checkedBy?: string | null;
 };
 type RegistrationRec = {
   id: string;
@@ -172,8 +214,10 @@ type EnrolmentRec = {
 };
 
 export type MockState = {
-  version: 2;
+  version: 3;
   epoch: string;
+  /** Classes, products and courses — the clinic owner can change these in the Admin area. */
+  catalog: EditableCatalog;
   users: UserRec[];
   sessions: Record<string, { userId: string; expiresAt: number }>;
   refreshTokens: Record<string, string>;
@@ -201,10 +245,12 @@ const BOOKING_LEAD_MINUTES = 120;
 const SLOT_STEP_MINUTES = 30;
 const MEETING_OPENS_MINUTES = 15;
 
-export function createInitialState(now: Date, catalog: Catalog): MockState {
+export function createInitialState(now: Date, catalogs: Record<Locale, Catalog>): MockState {
+  const catalog = catalogs.en;
   return {
-    version: 2,
+    version: 3,
     epoch: now.toISOString(),
+    catalog: seedEditable(catalogs.en, catalogs.ta, now.toISOString()),
     users: [],
     sessions: {},
     refreshTokens: {},
@@ -271,65 +317,12 @@ export type MockBackend = {
   userIdForToken(token: string | null): string | null;
   state: MockState;
   controls: MockControls;
+  /** Swap in state saved by another browser tab (the web app shares one sample database per browser). */
+  replaceState(next: MockState): void;
 };
 
-export type StaffOverviewData = {
-  payments: Array<{
-    id: string;
-    reference: string;
-    amount: number;
-    purpose: PaymentPurpose;
-    status: PaymentStatus;
-    payerName?: string;
-    utr?: string;
-    createdAt: string;
-  }>;
-  appointments: Array<{
-    id: string;
-    reference: string;
-    serviceName: string;
-    practitionerName: string;
-    start: string;
-    end: string;
-    patientName: string;
-    patientEmail: string;
-    patientPhone: string;
-    status: string;
-    consultationMethod?: string;
-  }>;
-  registrations: Array<{
-    id: string;
-    reference: string;
-    className: string;
-    batchTitle: string;
-    patientName: string;
-    patientEmail: string;
-    status: string;
-    amount: number;
-    createdAt: string;
-  }>;
-  enrolments: Array<{
-    id: string;
-    reference: string;
-    courseTitle: string;
-    patientName: string;
-    patientEmail: string;
-    status: string;
-    amount: number;
-    createdAt: string;
-  }>;
-  orders: Array<{
-    id: string;
-    reference: string;
-    status: string;
-    amount: number;
-    patientName: string;
-    patientEmail: string;
-    itemsSummary: string;
-    fulfilment: string;
-    createdAt: string;
-  }>;
-};
+/** A staff login the app asks the mock to have (development only — never part of a live build). */
+export type MockStaffLogin = { email: string; password: string; name?: string };
 
 export type MockControls = {
   /** Payments waiting for clinic verification (for the demo tools panel). */
@@ -350,20 +343,78 @@ export type MockControls = {
   lastResetToken(): string | null;
   /** Wipe all customer data and start again. */
   reset(): void;
-  /** Full overview of clinic activity for the Front Desk / Staff dashboard. */
-  staffOverview(): StaffOverviewData;
 };
 
 export function createMockBackend(
-  options: { now?: () => Date; initialState?: MockState; onChange?: (s: MockState) => void } = {},
+  options: {
+    now?: () => Date;
+    initialState?: MockState;
+    onChange?: (s: MockState) => void;
+    staff?: MockStaffLogin[];
+  } = {},
 ): MockBackend {
   const now = options.now ?? (() => new Date());
   const firstEpoch = options.initialState ? new Date(options.initialState.epoch) : now();
   let catalogs: Record<Locale, Catalog> = { en: buildCatalog("en", firstEpoch), ta: buildCatalog("ta", firstEpoch) };
-  let state: MockState = options.initialState ?? createInitialState(firstEpoch, catalogs.en);
+  let state: MockState = options.initialState ?? createInitialState(firstEpoch, catalogs);
   let lastResetToken: string | null = null;
-  const changed = () => options.onChange?.(state);
-  const cat = (locale: Locale) => catalogs[locale];
+  const changed = () => {
+    catalogVersion++;
+    options.onChange?.(state);
+  };
+
+  // Public records in each language, rebuilt whenever the data changes.
+  let catalogVersion = 0;
+  let memo: { version: number; en?: Catalog; ta?: Catalog } = { version: -1 };
+  const cat = (locale: Locale): Catalog => {
+    if (memo.version !== catalogVersion) memo = { version: catalogVersion };
+    return (memo[locale] ??= {
+      ...catalogs[locale],
+      classes: state.catalog.classes.map((c) => classRec(c, locale)),
+      products: state.catalog.products.map((p) => productRec(p, locale)),
+      courses: state.catalog.courses.map((c) => courseRec(c, locale)),
+    });
+  };
+
+  /** Owner logins from the app's settings: created if missing, password and role kept in step. */
+  function ensureStaff() {
+    let dirty = false;
+    for (const login of options.staff ?? []) {
+      const email = login.email.trim().toLowerCase();
+      if (!email || login.password.length < 8) continue;
+      const existing = state.users.find((u) => u.email === email);
+      if (existing) {
+        if (existing.role !== "OWNER" || existing.password !== login.password) {
+          existing.role = "OWNER";
+          existing.password = login.password;
+          dirty = true;
+        }
+        continue;
+      }
+      state.users.push({
+        id: newId("usr"),
+        name: login.name?.trim() || "Clinic owner",
+        email,
+        phone: "",
+        locale: "en",
+        role: "OWNER",
+        password: login.password,
+        createdAt: state.epoch,
+      });
+      dirty = true;
+    }
+    if (dirty) changed();
+  }
+
+  /** Keep the sample class dates ahead of today when the saved data is weeks old. */
+  function refreshSampleDates() {
+    const weeks = Math.floor((now().getTime() - new Date(state.epoch).getTime()) / (7 * 86_400_000));
+    if (weeks < 1) return;
+    moveSampleSchedule(state.catalog, weeks);
+    state.epoch = new Date(new Date(state.epoch).getTime() + weeks * 7 * 86_400_000).toISOString();
+    catalogs = { en: buildCatalog("en", new Date(state.epoch)), ta: buildCatalog("ta", new Date(state.epoch)) };
+    changed();
+  }
 
   // ── lazy expiry: unpaid orders and seat holds lapse ──
   function sweep(at: Date) {
@@ -401,12 +452,20 @@ export function createMockBackend(
     return user;
   };
 
+  /** Every /admin endpoint: signed in AND the clinic owner, checked on the server. */
+  const requireOwner = (req: MockRequest): UserRec => {
+    const user = requireUser(req);
+    if (user.role !== "OWNER") throw forbidden();
+    return user;
+  };
+
   const publicUser = (u: UserRec): User => ({
     id: u.id,
     name: u.name,
     email: u.email,
     phone: u.phone,
     locale: u.locale,
+    role: u.role ?? "CUSTOMER",
     createdAt: u.createdAt,
   });
 
@@ -618,7 +677,7 @@ export function createMockBackend(
       subtotal: o.subtotal,
       deliveryFee: o.deliveryFee,
       notes: o.notes,
-      trackingInfo: null,
+      trackingInfo: o.trackingInfo ?? null,
       paymentDueAt: o.status === "PENDING_PAYMENT" ? o.paymentDueAt : null,
       payment: p ? paymentView(p, locale) : null,
       events: o.events,
@@ -659,11 +718,12 @@ export function createMockBackend(
             canRenew: r.status === "CONFIRMED" && !!r.paidUntil && !r.renewal && state.upiEnabled,
           }
         : null,
-      // Private: only for this customer's confirmed seat. A sample link on example.com — not a real meeting.
+      // Private: only for this customer's confirmed seat. The clinic's own Meet link when it has set one;
+      // sample classes otherwise get a placeholder on example.com — not a real meeting.
       meeting:
-        r.status === "CONFIRMED" && !lapsed
+        r.status === "CONFIRMED" && !lapsed && (batch.meetingUrl || cls.isSample)
           ? {
-              url: `https://meet.example.com/sample-${cls.slug}`,
+              url: batch.meetingUrl ?? `https://meet.example.com/sample-${cls.slug}`,
               opensAt: iso(new Date(batch.startsAt).getTime() - MEETING_OPENS_MINUTES * 60_000),
             }
           : null,
@@ -872,6 +932,572 @@ export function createMockBackend(
     acceptTerms: z.literal(true, { message: "Please accept the terms to continue" }),
   });
 
+  // ── Admin area (clinic owner) ──
+  // Every handler starts with requireOwner(): the role is checked here, on the "server", never only in the app.
+
+  const customerOf = (userId: string): AdminCustomer => {
+    const u = state.users.find((x) => x.id === userId);
+    return { name: u?.name ?? "", email: u?.email ?? "", phone: u?.phone ?? "" };
+  };
+
+  function adminPaymentView(p: PaymentRec, locale: Locale): AdminPayment {
+    return {
+      id: p.id,
+      purpose: p.purpose,
+      reference: p.reference,
+      amount: p.amount,
+      status: p.status,
+      description: paymentView(p, locale).description,
+      utr: p.utr,
+      payerName: p.payerName,
+      customer: customerOf(p.userId),
+      createdAt: p.createdAt,
+      submittedAt: p.submittedAt,
+      verifiedAt: p.verifiedAt,
+      rejectionReason: p.rejectionReason,
+    };
+  }
+
+  /** A person has checked the bank statement: verified unlocks the order / seat / course, rejected asks the customer again. */
+  function checkPayment(p: PaymentRec, outcome: "verified" | "rejected", by: string | null, reason?: string) {
+    if (outcome === "verified") {
+      p.status = "VERIFIED";
+      p.verifiedAt = iso(now());
+    } else {
+      p.status = "REJECTED";
+      p.rejectionReason = reason ?? null;
+    }
+    p.checkedBy = by;
+    setTargetStatus(p, outcome);
+    changed();
+  }
+
+  const ORDER_NOTES: Partial<Record<OrderStatus, string>> = {
+    PROCESSING: "Your order is being packed",
+    SHIPPED: "Your order has been shipped",
+    READY_FOR_PICKUP: "Your order is ready to collect at the clinic",
+    COMPLETED: "Order completed",
+    CANCELLED: "Order cancelled by the clinic",
+  };
+
+  function adminOrderSummary(o: OrderRec): AdminOrderSummary {
+    const p = state.payments.find((x) => x.id === o.paymentId);
+    return {
+      ...orderSummary(o),
+      customerName: o.contact.name,
+      fulfilment: o.fulfilment,
+      paymentStatus: p?.status ?? null,
+    };
+  }
+
+  const adminOrderView = (o: OrderRec, locale: Locale): AdminOrder => ({
+    ...orderView(o, locale),
+    customer: customerOf(o.userId),
+    nextStatuses: nextOrderStatuses(o.status, o.fulfilment),
+  });
+
+  const storedClass = (id: string | undefined) => state.catalog.classes.find((c) => c.id === id);
+  const storedProduct = (id: string | undefined) => state.catalog.products.find((p) => p.id === id);
+  const storedCourse = (id: string | undefined) => state.catalog.courses.find((c) => c.id === id);
+  function findBatch(batchId: string | undefined): { c: StoredClass; b: StoredBatch } | null {
+    for (const c of state.catalog.classes) {
+      const b = c.batches.find((x) => x.id === batchId);
+      if (b) return { c, b };
+    }
+    return null;
+  }
+  function findLesson(lessonId: string | undefined): { c: StoredCourse; l: StoredLesson } | null {
+    for (const c of state.catalog.courses) {
+      const l = c.lessons.find((x) => x.id === lessonId);
+      if (l) return { c, l };
+    }
+    return null;
+  }
+
+  // Single-language fields (batch name, size, instructor) are edited in English; see retext().
+  function adminBatchView(b: StoredBatch, c: StoredClass): AdminBatch {
+    return {
+      id: b.id,
+      name: b.name?.en ?? null,
+      startsAt: b.startsAt,
+      durationMinutes: b.durationMinutes,
+      sessionsCount: b.sessionsCount,
+      scheduleNote: b.scheduleNote?.en ?? null,
+      seatLimit: b.seatLimit,
+      registrationOpen: b.registrationOpen,
+      meetingUrl: b.meetingUrl,
+      price: batchPrice(c.fee, c.feeType, b.sessionsCount),
+      students: state.registrations
+        .filter((r) => r.batchId === b.id && r.status !== "EXPIRED")
+        .sort((x, y) => x.createdAt.localeCompare(y.createdAt))
+        .map((r) => {
+          const u = customerOf(r.userId);
+          return {
+            registrationId: r.id,
+            reference: r.reference,
+            status: r.status,
+            name: u.name,
+            phone: u.phone,
+            email: u.email,
+            createdAt: r.createdAt,
+          };
+        }),
+    };
+  }
+
+  const adminClassView = (c: StoredClass): AdminClass => ({
+    id: c.id,
+    slug: c.slug,
+    title: c.title,
+    summary: c.summary,
+    description: c.description,
+    level: c.level,
+    language: c.language,
+    feeType: c.feeType,
+    fee: c.fee,
+    instructorName: c.instructorName?.en ?? null,
+    isPublished: c.isPublished,
+    isSample: c.isSample,
+    batches: [...c.batches].sort((x, y) => x.startsAt.localeCompare(y.startsAt)).map((b) => adminBatchView(b, c)),
+  });
+
+  function adminClassSummary(c: StoredClass, locale: Locale, at: Date): AdminClassSummary {
+    const next = c.batches
+      .filter((b) => new Date(b.startsAt) > at)
+      .sort((x, y) => x.startsAt.localeCompare(y.startsAt))[0];
+    return {
+      id: c.id,
+      slug: c.slug,
+      title: pick(c.title, locale),
+      feeType: c.feeType,
+      fee: c.fee,
+      isPublished: c.isPublished,
+      isSample: c.isSample,
+      batchCount: c.batches.length,
+      nextBatchStartsAt: next?.startsAt ?? null,
+      confirmedStudents: state.registrations.filter((r) => r.classId === c.id && r.status === "CONFIRMED").length,
+    };
+  }
+
+  const adminProductView = (p: StoredProduct): AdminProduct => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    categoryId: p.categoryId,
+    size: p.size?.en ?? null,
+    price: p.price,
+    mrp: p.mrp,
+    stock: stockOf(p.id),
+    isFeatured: p.isFeatured,
+    isPublished: p.isPublished,
+    shortDescription: p.shortDescription,
+    description: p.description,
+    isSample: p.isSample,
+  });
+
+  const adminProductSummary = (p: StoredProduct, locale: Locale): AdminProductSummary => ({
+    id: p.id,
+    slug: p.slug,
+    name: pick(p.name, locale),
+    categoryName: cat(locale).categories.find((c) => c.id === p.categoryId)?.name ?? null,
+    size: p.size ? pick(p.size, locale) : null,
+    price: p.price,
+    stock: stockOf(p.id),
+    isPublished: p.isPublished,
+    isSample: p.isSample,
+  });
+
+  const adminCourseView = (c: StoredCourse): AdminCourse => ({
+    id: c.id,
+    slug: c.slug,
+    title: c.title,
+    summary: c.summary,
+    description: c.description,
+    level: c.level,
+    price: c.price,
+    accessDays: c.accessDays,
+    isPublished: c.isPublished,
+    isSample: c.isSample,
+    lessons: c.lessons.map((l) => ({
+      id: l.id,
+      position: l.position,
+      title: l.title,
+      durationMinutes: l.durationMinutes,
+      isFreePreview: l.isFreePreview,
+      notes: l.notes,
+      videoUrl: l.videoUrl,
+    })),
+  });
+
+  const adminCourseSummary = (c: StoredCourse, locale: Locale, at: Date): AdminCourseSummary => ({
+    id: c.id,
+    slug: c.slug,
+    title: pick(c.title, locale),
+    price: c.price,
+    accessDays: c.accessDays,
+    lessonCount: c.lessons.length,
+    activeStudents: state.enrolments.filter((e) => e.courseId === c.id && !!activeEnrolment(e.userId, c.id, at)).length,
+    isPublished: c.isPublished,
+    isSample: c.isSample,
+  });
+
+  /** PATCH bodies are laid over the current values and checked as a whole (so cross-field rules still apply). */
+  const merged = <S extends z.ZodType>(schema: S, current: object, body: Record<string, unknown>): z.output<S> =>
+    check(schema, { ...current, ...body });
+
+  const classInput = (c: StoredClass) => {
+    const { id: _i, slug: _s, isSample: _x, batches: _b, ...input } = adminClassView(c);
+    return input;
+  };
+  const batchInput = (b: StoredBatch, c: StoredClass) => {
+    const { id: _i, price: _p, students: _st, ...input } = adminBatchView(b, c);
+    return input;
+  };
+  const productInput = (p: StoredProduct) => {
+    const { id: _i, slug: _s, isSample: _x, ...input } = adminProductView(p);
+    return input;
+  };
+  const courseInput = (c: StoredCourse) => {
+    const { id: _i, slug: _s, isSample: _x, lessons: _l, ...input } = adminCourseView(c);
+    return input;
+  };
+
+  const knownCategory = (id: string | null) => id === null || catalogs.en.categories.some((c) => c.id === id);
+
+  const adminHandlers: Record<string, (req: MockRequest) => MockResponse> = {
+    [endpoints.admin.overview.id]: (req) => {
+      requireOwner(req);
+      const overview: AdminOverview = {
+        paymentsToCheck: state.payments.filter((p) => p.status === "SUBMITTED").length,
+        ordersToPrepare: state.orders.filter((o) => o.status === "CONFIRMED" || o.status === "PROCESSING").length,
+        upcomingBatches: state.catalog.classes.reduce(
+          (n, c) => n + c.batches.filter((b) => new Date(b.startsAt) > req.now).length,
+          0,
+        ),
+        lowStockProducts: state.catalog.products.filter((p) => p.isPublished && stockOf(p.id) <= LOW_STOCK).length,
+      };
+      return ok(overview);
+    },
+
+    // Payments
+    [endpoints.admin.payments.id]: (req) => {
+      requireOwner(req);
+      const status = req.query.status as PaymentStatus | undefined;
+      const list = state.payments.filter((p) => !status || p.status === status);
+      // Payments to check: oldest first, so they are checked in the order customers paid.
+      list.sort((a, b) =>
+        status === "SUBMITTED"
+          ? (a.submittedAt ?? "").localeCompare(b.submittedAt ?? "")
+          : b.createdAt.localeCompare(a.createdAt),
+      );
+      return ok(list.map((p) => adminPaymentView(p, req.locale)));
+    },
+    [endpoints.admin.verifyPayment.id]: (req) => {
+      const owner = requireOwner(req);
+      check(verifyPaymentSchema, req.body);
+      const p = state.payments.find((x) => x.id === req.params.paymentId);
+      if (!p) throw notFound("Payment");
+      if (p.status !== "SUBMITTED")
+        throw new MockHttpError(409, "PAYMENT_ALREADY_CHECKED", "This payment has already been checked");
+      checkPayment(p, "verified", owner.id);
+      return ok(adminPaymentView(p, req.locale));
+    },
+    [endpoints.admin.rejectPayment.id]: (req) => {
+      const owner = requireOwner(req);
+      const { reason } = check(rejectPaymentSchema, req.body);
+      const p = state.payments.find((x) => x.id === req.params.paymentId);
+      if (!p) throw notFound("Payment");
+      if (p.status !== "SUBMITTED")
+        throw new MockHttpError(409, "PAYMENT_ALREADY_CHECKED", "This payment has already been checked");
+      checkPayment(p, "rejected", owner.id, reason);
+      return ok(adminPaymentView(p, req.locale));
+    },
+
+    // Orders
+    [endpoints.admin.orders.id]: (req) => {
+      requireOwner(req);
+      const status = req.query.status as OrderStatus | undefined;
+      const list = state.orders
+        .filter((o) => !status || o.status === status)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return ok(page(list.map(adminOrderSummary), req.query, 20));
+    },
+    [endpoints.admin.order.id]: (req) => {
+      requireOwner(req);
+      const o = state.orders.find((x) => x.reference === req.params.reference);
+      if (!o) throw notFound("Order");
+      return ok(adminOrderView(o, req.locale));
+    },
+    [endpoints.admin.updateOrderStatus.id]: (req) => {
+      requireOwner(req);
+      const o = state.orders.find((x) => x.reference === req.params.reference);
+      if (!o) throw notFound("Order");
+      const body = check(orderStatusSchema, req.body);
+      if (!nextOrderStatuses(o.status, o.fulfilment).includes(body.status))
+        throw new MockHttpError(409, "INVALID_STATUS_CHANGE", "The order can't move to that status now");
+      if (body.status === "CANCELLED") {
+        for (const item of o.items) state.stock[item.productId] = stockOf(item.productId) + item.quantity;
+        const p = state.payments.find((x) => x.id === o.paymentId);
+        // A verified payment stays verified: the clinic refunds it from its own bank account.
+        if (p && (p.status === "AWAITING_PAYMENT" || p.status === "REJECTED")) p.status = "CANCELLED";
+      }
+      if (body.status === "SHIPPED" && body.trackingInfo) o.trackingInfo = body.trackingInfo;
+      o.status = body.status;
+      o.events.push({ status: body.status, note: body.note ?? ORDER_NOTES[body.status] ?? null, at: iso(req.now) });
+      changed();
+      return ok(adminOrderView(o, req.locale));
+    },
+
+    // Live classes
+    [endpoints.admin.classes.id]: (req) => {
+      requireOwner(req);
+      return ok(state.catalog.classes.map((c) => adminClassSummary(c, req.locale, req.now)));
+    },
+    [endpoints.admin.createClass.id]: (req) => {
+      requireOwner(req);
+      const body = check(classInputSchema, req.body);
+      const c: StoredClass = {
+        id: newId("cls"),
+        slug: slugify(body.title.en, new Set(state.catalog.classes.map((x) => x.slug)), "class"),
+        title: body.title,
+        summary: body.summary,
+        description: body.description,
+        audience: { en: "", ta: null },
+        level: body.level,
+        language: body.language,
+        feeType: body.feeType,
+        fee: body.fee,
+        feeIncludes: { en: [], ta: null },
+        materials: { en: [], ta: null },
+        instructorName: retext(null, body.instructorName),
+        image: { url: "/images/placeholders/class-default.webp", alt: "" },
+        isSample: false,
+        isPublished: body.isPublished,
+        edited: true,
+        createdAt: iso(req.now),
+        batches: [],
+      };
+      state.catalog.classes.unshift(c);
+      changed();
+      return created(adminClassView(c));
+    },
+    [endpoints.admin.class.id]: (req) => {
+      requireOwner(req);
+      const c = storedClass(req.params.classId);
+      if (!c) throw notFound("Class");
+      return ok(adminClassView(c));
+    },
+    [endpoints.admin.updateClass.id]: (req) => {
+      requireOwner(req);
+      const c = storedClass(req.params.classId);
+      if (!c) throw notFound("Class");
+      const body = merged(classInputSchema, classInput(c), req.body);
+      Object.assign(c, {
+        title: body.title,
+        summary: body.summary,
+        description: body.description,
+        level: body.level,
+        language: body.language,
+        feeType: body.feeType,
+        fee: body.fee,
+        instructorName: retext(c.instructorName, body.instructorName),
+        isPublished: body.isPublished,
+        edited: true,
+      });
+      changed();
+      return ok(adminClassView(c));
+    },
+    [endpoints.admin.createBatch.id]: (req) => {
+      requireOwner(req);
+      const c = storedClass(req.params.classId);
+      if (!c) throw notFound("Class");
+      const body = check(batchInputSchema, req.body);
+      if (new Date(body.startsAt) <= req.now) throw invalid({ startsAt: "Choose a start time in the future" });
+      c.batches.push({
+        id: newId("bat"),
+        classId: c.id,
+        name: retext(null, body.name),
+        startsAt: new Date(body.startsAt).toISOString(),
+        durationMinutes: body.durationMinutes,
+        sessionsCount: body.sessionsCount,
+        scheduleNote: retext(null, body.scheduleNote),
+        seatLimit: body.seatLimit,
+        registrationOpen: body.registrationOpen,
+        meetingUrl: body.meetingUrl,
+      });
+      c.edited = true;
+      changed();
+      return created(adminClassView(c));
+    },
+    [endpoints.admin.updateBatch.id]: (req) => {
+      requireOwner(req);
+      const found = findBatch(req.params.batchId);
+      if (!found) throw notFound("Batch");
+      const { c, b } = found;
+      const body = merged(batchInputSchema, batchInput(b, c), req.body);
+      Object.assign(b, {
+        name: retext(b.name, body.name),
+        startsAt: new Date(body.startsAt).toISOString(),
+        durationMinutes: body.durationMinutes,
+        sessionsCount: body.sessionsCount,
+        scheduleNote: retext(b.scheduleNote, body.scheduleNote),
+        seatLimit: body.seatLimit,
+        registrationOpen: body.registrationOpen,
+        meetingUrl: body.meetingUrl,
+      });
+      c.edited = true;
+      changed();
+      return ok(adminClassView(c));
+    },
+    [endpoints.admin.deleteBatch.id]: (req) => {
+      requireOwner(req);
+      const found = findBatch(req.params.batchId);
+      if (!found) throw notFound("Batch");
+      const { c, b } = found;
+      if (state.registrations.some((r) => r.batchId === b.id && r.status !== "EXPIRED" && r.status !== "CANCELLED"))
+        throw new MockHttpError(409, "BATCH_HAS_STUDENTS", "This batch has students");
+      c.batches = c.batches.filter((x) => x.id !== b.id);
+      c.edited = true;
+      changed();
+      return noContent();
+    },
+
+    // Shop products
+    [endpoints.admin.products.id]: (req) => {
+      requireOwner(req);
+      return ok(state.catalog.products.map((p) => adminProductSummary(p, req.locale)));
+    },
+    [endpoints.admin.createProduct.id]: (req) => {
+      requireOwner(req);
+      const body = check(productInputSchema, req.body);
+      if (!knownCategory(body.categoryId)) throw invalid({ categoryId: "Choose a category" });
+      const p: StoredProduct = {
+        id: newId("prd"),
+        slug: slugify(body.name.en, new Set(state.catalog.products.map((x) => x.slug)), "product"),
+        name: body.name,
+        categoryId: body.categoryId,
+        size: retext(null, body.size),
+        price: body.price,
+        mrp: body.mrp,
+        isFeatured: body.isFeatured,
+        sortOrder: Math.max(0, ...state.catalog.products.map((x) => x.sortOrder)) + 1,
+        shortDescription: body.shortDescription,
+        description: body.description,
+        benefits: { en: [], ta: null },
+        ingredients: null,
+        usage: null,
+        image: { url: "/images/placeholders/product-default.webp", alt: "" },
+        isSample: false,
+        isPublished: body.isPublished,
+        createdAt: iso(req.now),
+      };
+      state.catalog.products.push(p);
+      state.stock[p.id] = body.stock;
+      changed();
+      return created(adminProductView(p));
+    },
+    [endpoints.admin.product.id]: (req) => {
+      requireOwner(req);
+      const p = storedProduct(req.params.productId);
+      if (!p) throw notFound("Product");
+      return ok(adminProductView(p));
+    },
+    [endpoints.admin.updateProduct.id]: (req) => {
+      requireOwner(req);
+      const p = storedProduct(req.params.productId);
+      if (!p) throw notFound("Product");
+      const body = merged(productInputSchema, productInput(p), req.body);
+      if (!knownCategory(body.categoryId)) throw invalid({ categoryId: "Choose a category" });
+      Object.assign(p, {
+        name: body.name,
+        categoryId: body.categoryId,
+        size: retext(p.size, body.size),
+        price: body.price,
+        mrp: body.mrp,
+        isFeatured: body.isFeatured,
+        isPublished: body.isPublished,
+        shortDescription: body.shortDescription,
+        description: body.description,
+      });
+      state.stock[p.id] = body.stock;
+      changed();
+      return ok(adminProductView(p));
+    },
+
+    // Recorded courses
+    [endpoints.admin.courses.id]: (req) => {
+      requireOwner(req);
+      return ok(state.catalog.courses.map((c) => adminCourseSummary(c, req.locale, req.now)));
+    },
+    [endpoints.admin.createCourse.id]: (req) => {
+      requireOwner(req);
+      const body = check(courseInputSchema, req.body);
+      const c: StoredCourse = {
+        id: newId("crs"),
+        slug: slugify(body.title.en, new Set(state.catalog.courses.map((x) => x.slug)), "course"),
+        title: body.title,
+        summary: body.summary,
+        description: body.description,
+        category: null,
+        level: body.level,
+        language: null,
+        price: body.price,
+        accessDays: body.accessDays,
+        cover: { url: "/images/placeholders/course-default.webp", alt: "" },
+        outcomes: { en: [], ta: null },
+        instructor: null,
+        isSample: false,
+        isPublished: body.isPublished,
+        createdAt: iso(req.now),
+        lessons: [],
+      };
+      state.catalog.courses.unshift(c);
+      changed();
+      return created(adminCourseView(c));
+    },
+    [endpoints.admin.course.id]: (req) => {
+      requireOwner(req);
+      const c = storedCourse(req.params.courseId);
+      if (!c) throw notFound("Course");
+      return ok(adminCourseView(c));
+    },
+    [endpoints.admin.updateCourse.id]: (req) => {
+      requireOwner(req);
+      const c = storedCourse(req.params.courseId);
+      if (!c) throw notFound("Course");
+      const body = merged(courseInputSchema, courseInput(c), req.body);
+      Object.assign(c, body);
+      changed();
+      return ok(adminCourseView(c));
+    },
+    [endpoints.admin.createLesson.id]: (req) => {
+      requireOwner(req);
+      const c = storedCourse(req.params.courseId);
+      if (!c) throw notFound("Course");
+      const body = check(lessonSchema, req.body);
+      c.lessons.push({ id: newId("les"), position: c.lessons.length + 1, ...body });
+      changed();
+      return created(adminCourseView(c));
+    },
+    [endpoints.admin.updateLesson.id]: (req) => {
+      requireOwner(req);
+      const found = findLesson(req.params.lessonId);
+      if (!found) throw notFound("Lesson");
+      const { id: _i, position: _p, ...current } = found.l;
+      Object.assign(found.l, merged(lessonSchema, current, req.body));
+      changed();
+      return ok(adminCourseView(found.c));
+    },
+    [endpoints.admin.deleteLesson.id]: (req) => {
+      requireOwner(req);
+      const found = findLesson(req.params.lessonId);
+      if (!found) throw notFound("Lesson");
+      found.c.lessons = found.c.lessons.filter((l) => l.id !== found.l.id).map((l, i) => ({ ...l, position: i + 1 }));
+      changed();
+      return noContent();
+    },
+  };
+
   const handlers: Record<string, (req: MockRequest) => MockResponse> = {
     // Auth
     [endpoints.auth.register.id]: (req) => {
@@ -881,18 +1507,13 @@ export function createMockBackend(
           email: "An account with this email already exists",
         });
       }
-      const role: "customer" | "front_desk" | "owner" = body.email.includes("frontdesk")
-        ? "front_desk"
-        : body.email.includes("owner")
-          ? "owner"
-          : "customer";
       const user: UserRec = {
         id: newId("usr"),
         name: body.name,
         email: body.email,
         phone: body.phone,
         locale: body.locale,
-        role,
+        role: "CUSTOMER", // registration never creates staff accounts
         password: body.password,
         createdAt: iso(req.now),
       };
@@ -905,31 +1526,7 @@ export function createMockBackend(
         .toLowerCase();
       const recent = (state.failedLogins[email] ?? []).filter((ts) => ts > req.now.getTime() - 10 * 60_000);
       if (recent.length >= 5) throw new MockHttpError(429, "RATE_LIMITED", "Too many attempts");
-      let user = state.users.find((u) => u.email === email);
-      if (!user && req.body.password === "calm-waters-42") {
-        const DEMO_SEEDS: Record<string, { name: string; phone: string; role: "customer" | "front_desk" | "owner" }> = {
-          "asha@example.com": { name: "Asha Rao", phone: "9876543210", role: "customer" },
-          "frontdesk@sridurgawellness.com": { name: "Front Desk", phone: "+919876543211", role: "front_desk" },
-          "frontdesk@example.com": { name: "Front Desk", phone: "+919876543211", role: "front_desk" },
-          "owner@sridurgawellness.com": { name: "Dr. Clinic Owner", phone: "+919876543212", role: "owner" },
-          "owner@example.com": { name: "Dr. Clinic Owner", phone: "+919876543212", role: "owner" },
-        };
-        const seed = DEMO_SEEDS[email];
-        if (seed) {
-          user = {
-            id: newId("usr"),
-            name: seed.name,
-            email,
-            phone: seed.phone,
-            locale: "en",
-            role: seed.role,
-            password: req.body.password,
-            createdAt: iso(req.now),
-          };
-          state.users.push(user);
-          changed();
-        }
-      }
+      const user = state.users.find((u) => u.email === email);
       if (!user || user.password !== req.body.password) {
         state.failedLogins[email] = [...recent, req.now.getTime()];
         changed();
@@ -1154,6 +1751,7 @@ export function createMockBackend(
       const c = cat(req.locale);
       const q = (req.query.q ?? "").trim().toLowerCase();
       let list = c.products.filter((p) => {
+        if (!p.isPublished) return false;
         if (req.query.category && c.categories.find((x) => x.id === p.categoryId)?.slug !== req.query.category)
           return false;
         return !q || p.name.toLowerCase().includes(q) || p.shortDescription.toLowerCase().includes(q);
@@ -1176,7 +1774,7 @@ export function createMockBackend(
     },
     [endpoints.shop.product.id]: (req) => {
       const c = cat(req.locale);
-      const p = c.products.find((x) => x.slug === req.params.slug);
+      const p = c.products.find((x) => x.slug === req.params.slug && x.isPublished);
       if (!p) throw notFound("Product");
       const detail: Product = {
         ...productSummary(p, c),
@@ -1247,6 +1845,7 @@ export function createMockBackend(
           paymentDueAt: due,
           paymentId: payment.id,
           events: [{ status: "PENDING_PAYMENT", note: "Order placed", at: iso(req.now) }],
+          trackingInfo: null,
         };
         state.orders.push(order);
         changed();
@@ -1285,10 +1884,18 @@ export function createMockBackend(
     },
 
     // Classes
-    [endpoints.classes.list.id]: (req) => ok(cat(req.locale).classes.map((c) => classSummary(c, req.now))),
+    [endpoints.classes.list.id]: (req) =>
+      ok(
+        cat(req.locale)
+          .classes.filter((c) => c.isPublished)
+          .map((c) => classSummary(c, req.now)),
+      ),
     [endpoints.classes.get.id]: (req) => {
       const c = cat(req.locale).classes.find((x) => x.slug === req.params.slug);
-      if (!c) throw notFound("Class");
+      // A hidden class stays visible only to customers already registered for it.
+      const registered =
+        !!req.userId && state.registrations.some((r) => r.userId === req.userId && r.classId === c?.id);
+      if (!c || (!c.isPublished && !registered)) throw notFound("Class");
       const detail: LiveClass = {
         ...classSummary(c, req.now),
         description: c.description,
@@ -1314,7 +1921,7 @@ export function createMockBackend(
         const user = requireUser(req);
         const c = cat(req.locale).classes.find((x) => x.batches.some((b) => b.id === req.params.batchId));
         const batch = c?.batches.find((b) => b.id === req.params.batchId);
-        if (!c || !batch) throw notFound("Batch");
+        if (!c || !batch || !c.isPublished) throw notFound("Batch");
         if (
           state.registrations.some(
             (r) => r.userId === user.id && r.batchId === batch.id && r.status !== "CANCELLED" && r.status !== "EXPIRED",
@@ -1353,13 +1960,16 @@ export function createMockBackend(
 
     // Courses
     [endpoints.courses.list.id]: (req) => {
-      const list = cat(req.locale).courses.filter((c) => !req.query.category || c.category === req.query.category);
+      const list = cat(req.locale).courses.filter(
+        (c) => c.isPublished && (!req.query.category || c.category === req.query.category),
+      );
       return ok(list.map(courseSummary));
     },
     [endpoints.courses.get.id]: (req) => {
       const c = cat(req.locale).courses.find((x) => x.slug === req.params.slug);
-      if (!c) throw notFound("Course");
-      const e = currentEnrolment(req.userId, c.id);
+      const e = c ? currentEnrolment(req.userId, c.id) : undefined;
+      // A hidden course stays open to customers who already enrolled.
+      if (!c || (!c.isPublished && !e)) throw notFound("Course");
       const detail: Course = {
         ...courseSummary(c),
         description: c.description,
@@ -1375,7 +1985,9 @@ export function createMockBackend(
       const idx = c?.lessons.findIndex((l) => l.id === req.params.lessonId) ?? -1;
       const l = c?.lessons[idx];
       if (!c || !l) throw notFound("Lesson");
-      const access = !!activeEnrolment(req.userId, c.id, req.now) || l.isFreePreview;
+      const enrolled = !!activeEnrolment(req.userId, c.id, req.now);
+      if (!c.isPublished && !enrolled) throw notFound("Lesson");
+      const access = enrolled || l.isFreePreview;
       // Locked lessons return no lesson data at all — not even notes.
       if (!access) throw new MockHttpError(403, "NOT_ENROLLED", "Enrol in this course to open this lesson");
       const done = new Set(req.userId ? (state.progress[req.userId] ?? []) : []);
@@ -1387,7 +1999,8 @@ export function createMockBackend(
         summary: null,
         durationMinutes: l.durationMinutes,
         notes: l.notes,
-        video: null, // the clinic adds real videos on the backend
+        // Only YouTube / Vimeo links the clinic added; turned into their privacy-friendly embed address.
+        video: l.videoUrl ? videoEmbed(l.videoUrl) : null,
         resources: [],
         isCompleted: done.has(l.id),
         previousLessonId: c.lessons[idx - 1]?.id ?? null,
@@ -1399,7 +2012,7 @@ export function createMockBackend(
       idempotent(req, () => {
         const user = requireUser(req);
         const c = cat(req.locale).courses.find((x) => x.slug === req.params.slug);
-        if (!c) throw notFound("Course");
+        if (!c || !c.isPublished) throw notFound("Course");
         const existing = currentEnrolment(user.id, c.id);
         if (
           existing &&
@@ -1557,6 +2170,7 @@ export function createMockBackend(
         });
       return ok(mine);
     },
+    ...adminHandlers,
   };
 
   function quote(rawItems: unknown, fulfilment: "PICKUP" | "DELIVERY", locale: Locale): CartQuote {
@@ -1575,7 +2189,7 @@ export function createMockBackend(
     const problems: CartProblem[] = [];
     const lines: CartQuote["lines"] = [];
     for (const item of items) {
-      const p = c.products.find((x) => x.id === item.productId);
+      const p = c.products.find((x) => x.id === item.productId && x.isPublished);
       if (!p) {
         problems.push({ productId: item.productId, code: "UNAVAILABLE", availableQuantity: 0 });
         continue;
@@ -1609,18 +2223,12 @@ export function createMockBackend(
     verifyPayment(paymentId) {
       const p = state.payments.find((x) => x.id === paymentId);
       if (!p || p.status !== "SUBMITTED") return;
-      p.status = "VERIFIED";
-      p.verifiedAt = iso(now());
-      setTargetStatus(p, "verified");
-      changed();
+      checkPayment(p, "verified", null);
     },
     rejectPayment(paymentId, reason) {
       const p = state.payments.find((x) => x.id === paymentId);
       if (!p || p.status !== "SUBMITTED") return;
-      p.status = "REJECTED";
-      p.rejectionReason = reason;
-      setTargetStatus(p, "rejected");
-      changed();
+      checkPayment(p, "rejected", null, reason);
     },
     setUpiEnabled(enabled) {
       state.upiEnabled = enabled;
@@ -1630,137 +2238,10 @@ export function createMockBackend(
     reset() {
       const epoch = now();
       catalogs = { en: buildCatalog("en", epoch), ta: buildCatalog("ta", epoch) };
-      state = createInitialState(epoch, catalogs.en);
+      state = createInitialState(epoch, catalogs);
       backend.state = state;
       changed();
-    },
-    staffOverview(): StaffOverviewData {
-      const uMap = new Map(state.users.map((u) => [u.id, u]));
-      const appointments =
-        state.appointments.length > 0
-          ? state.appointments.map((a) => {
-              const u = a.userId ? uMap.get(a.userId) : null;
-              return {
-                id: a.id,
-                reference: a.reference,
-                serviceName: a.serviceName,
-                practitionerName: a.doctorName,
-                start: a.start,
-                end: a.end,
-                patientName: a.patientName || u?.name || "Asha Rao",
-                patientEmail: a.patientEmail || u?.email || "asha@example.com",
-                patientPhone: a.patientPhone || u?.phone || "+919876543210",
-                status: a.status,
-                consultationMethod: a.consultationMethod,
-              };
-            })
-          : [
-              {
-                id: "apt_demo_1",
-                reference: "APT-SDW829",
-                serviceName: "Nadi Pariksha (Pulse Diagnosis)",
-                practitionerName: "Dr. K. Jayashree",
-                start: new Date(now().getTime() + 2 * 3600 * 1000).toISOString(),
-                end: new Date(now().getTime() + 2.5 * 3600 * 1000).toISOString(),
-                patientName: "Asha Rao",
-                patientEmail: "asha@example.com",
-                patientPhone: "+919876543210",
-                status: "CONFIRMED",
-                consultationMethod: "IN_PERSON",
-              },
-              {
-                id: "apt_demo_2",
-                reference: "APT-SDW944",
-                serviceName: "Panchakarma Consultation",
-                practitionerName: "Dr. Sundaramoorthy",
-                start: new Date(now().getTime() + 26 * 3600 * 1000).toISOString(),
-                end: new Date(now().getTime() + 27 * 3600 * 1000).toISOString(),
-                patientName: "Ramesh Kumar",
-                patientEmail: "ramesh@example.com",
-                patientPhone: "+919841029384",
-                status: "CONFIRMED",
-                consultationMethod: "VIDEO",
-              },
-            ];
-
-      const registrations =
-        state.registrations.length > 0
-          ? state.registrations.map((r) => {
-              const u = uMap.get(r.userId);
-              const liveClass = cat("en").classes.find((c) => c.id === r.classId);
-              const batch = liveClass?.batches.find((b) => b.id === r.batchId);
-              return {
-                id: r.id,
-                reference: r.reference,
-                className: liveClass?.title || "Daily Pranayama & Asana",
-                batchTitle: batch?.name || "Morning 06:30 – 07:30",
-                patientName: u?.name || "Asha Rao",
-                patientEmail: u?.email || "asha@example.com",
-                status: r.status,
-                amount: r.amount,
-                createdAt: r.createdAt,
-              };
-            })
-          : [
-              {
-                id: "reg_demo_1",
-                reference: "CLS-PRN101",
-                className: "Daily Pranayama & Surya Namaskar",
-                batchTitle: "Morning Batch (06:30 – 07:30)",
-                patientName: "Asha Rao",
-                patientEmail: "asha@example.com",
-                status: "CONFIRMED",
-                amount: 120000,
-                createdAt: new Date(now().getTime() - 4 * 3600 * 1000).toISOString(),
-              },
-            ];
-
-      const enrolments = state.enrolments.map((e) => {
-        const u = uMap.get(e.userId);
-        const course = cat("en").courses.find((c) => c.id === e.courseId);
-        return {
-          id: e.id,
-          reference: e.reference,
-          courseTitle: course?.title || "Foundations of Ayurveda",
-          patientName: u?.name || "Student",
-          patientEmail: u?.email || "asha@example.com",
-          status: e.status,
-          amount: e.amount,
-          createdAt: e.createdAt,
-        };
-      });
-
-      const orders = state.orders.map((o) => {
-        const u = uMap.get(o.userId);
-        return {
-          id: o.id,
-          reference: o.reference,
-          status: o.status,
-          amount: o.amount,
-          patientName: o.contact?.name || u?.name || "Customer",
-          patientEmail: o.contact?.email || u?.email || "",
-          itemsSummary: o.items.map((i) => `${i.title} × ${i.quantity}`).join(", "),
-          fulfilment: o.fulfilment,
-          createdAt: o.createdAt,
-        };
-      });
-
-      return {
-        payments: state.payments.map((p) => ({
-          id: p.id,
-          reference: p.reference,
-          amount: p.amount,
-          purpose: p.purpose,
-          status: p.status,
-          payerName: p.payerName,
-          utr: p.utr,
-          createdAt: p.createdAt,
-        })),
-        appointments,
-        registrations,
-        enrolments,
-        orders,
-      };
+      ensureStaff();
     },
   };
 
@@ -1768,6 +2249,14 @@ export function createMockBackend(
     state,
     userIdForToken,
     controls,
+    replaceState(next) {
+      if (next.epoch !== state.epoch)
+        catalogs = { en: buildCatalog("en", new Date(next.epoch)), ta: buildCatalog("ta", new Date(next.epoch)) };
+      state = next;
+      backend.state = next;
+      catalogVersion++;
+      ensureStaff();
+    },
     handle(req) {
       sweep(req.now);
       const handler = handlers[req.endpoint.id];
@@ -1775,6 +2264,8 @@ export function createMockBackend(
       return handler(req);
     },
   };
+  ensureStaff();
+  refreshSampleDates();
   return backend;
 }
 

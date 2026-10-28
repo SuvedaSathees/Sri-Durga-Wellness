@@ -1,6 +1,11 @@
 import type { ID, ISODateTime, Locale } from "./common";
 
-export type UserRole = "customer" | "front_desk" | "owner";
+/**
+ * CUSTOMER: everyone who registers on the site.
+ * OWNER: the clinic owner, who can use the Admin area. Owner accounts are created on the server
+ * (never through registration) and every /admin endpoint checks this role on the server.
+ */
+export type UserRole = "CUSTOMER" | "OWNER";
 
 export type User = {
   id: ID;
@@ -9,7 +14,7 @@ export type User = {
   /** E.164, e.g. "+919876543210". */
   phone: string;
   locale: Locale;
-  role?: UserRole;
+  role: UserRole;
   createdAt: ISODateTime;
 };
 

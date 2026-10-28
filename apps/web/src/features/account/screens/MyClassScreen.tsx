@@ -132,6 +132,10 @@ export function MyClassScreen() {
               <Notice tone="info">
                 {t("We're verifying your payment. The joining link will appear here once it's confirmed.")}
               </Notice>
+            ) : r.status === "CONFIRMED" && (!r.monthly || (!!r.monthly.paidUntil && !r.monthly.renewal)) ? (
+              <Notice tone="success" title={t("Your seat is confirmed")}>
+                {t("The clinic will add the Google Meet link here before the class starts.")}
+              </Notice>
             ) : null}
 
             <MonthlyPlan registration={r} />

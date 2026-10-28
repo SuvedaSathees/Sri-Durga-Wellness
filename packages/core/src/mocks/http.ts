@@ -37,6 +37,7 @@ export const noContent = (): MockResponse => ({ status: 204 });
 
 export const notFound = (what = "Resource") => new MockHttpError(404, "NOT_FOUND", `${what} not found`);
 export const unauthenticated = () => new MockHttpError(401, "UNAUTHENTICATED", "Sign in to continue");
+export const forbidden = () => new MockHttpError(403, "FORBIDDEN", "Only the clinic owner can do this");
 export const invalid = (fieldErrors: Record<string, string>) =>
   new MockHttpError(422, "VALIDATION_FAILED", "Some fields need attention", fieldErrors);
 

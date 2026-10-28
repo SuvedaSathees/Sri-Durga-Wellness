@@ -6,11 +6,11 @@ and rules, but talk to a **separately developed backend** over a REST/JSON API.
 
 ## 1. Who uses it
 
-| User                    | Where                                | Main jobs                                                                                                                                                                                                           |
-| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Visitor (not signed in) | Web, mobile                          | Learn about the clinic, its practitioners and services; browse the shop, classes and courses; book an appointment; ask for a free consultation; send a message                                                      |
-| Customer (signed in)    | Web, mobile                          | Everything a visitor can do, plus: buy products, register for live classes, enrol in recorded courses, pay by UPI and track verification, watch unlocked lessons, manage appointments, orders, profile and language |
-| Clinic staff            | Web dashboard of the existing system | Verify payments, manage orders, bookings, content. **Out of scope here** — the staff dashboard stays in the existing system / backend team's admin tool                                                             |
+| User                    | Where                       | Main jobs                                                                                                                                                                                                                                                                     |
+| ----------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Visitor (not signed in) | Web, mobile                 | Learn about the clinic, its practitioners and services; browse the shop, classes and courses; book an appointment; ask for a free consultation; send a message                                                                                                                |
+| Customer (signed in)    | Web, mobile                 | Everything a visitor can do, plus: buy products, register for live classes, enrol in recorded courses, pay by UPI and track verification, watch unlocked lessons, manage appointments, orders, profile and language                                                           |
+| Clinic owner            | Web — Admin area (`/admin`) | Check UPI payments against the bank statement (verify / not found with a reason), move orders through packing and shipping, post live classes and batches with the private Meet link, edit products and courses. Every `/admin` call is checked on the server (`role: OWNER`) |
 
 ## 2. Features in scope
 

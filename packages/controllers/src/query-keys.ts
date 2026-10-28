@@ -3,7 +3,7 @@
  * API returns translated content; switching language then shows cached results instantly.
  * Everything under "me" is private to the signed-in customer and is cleared on sign-out.
  */
-import type { AvailabilityQuery, Locale, PageQuery, ProductQuery } from "@sdw/core";
+import type { AdminOrderQuery, AvailabilityQuery, Locale, PageQuery, ProductQuery } from "@sdw/core";
 
 export const qk = {
   session: ["session"] as const,
@@ -40,4 +40,16 @@ export const qk = {
   myRegistrations: (l: Locale) => ["me", "registrations", l] as const,
   myRegistration: (l: Locale, id: string) => ["me", "registration", l, id] as const,
   myCourses: (l: Locale) => ["me", "courses", l] as const,
+  // Admin area (clinic owner) — also under "me", so signing out clears it.
+  admin: ["me", "admin"] as const,
+  adminOverview: (l: Locale) => ["me", "admin", "overview", l] as const,
+  adminPayments: (l: Locale, status: string) => ["me", "admin", "payments", l, status] as const,
+  adminOrders: (l: Locale, q: AdminOrderQuery) => ["me", "admin", "orders", l, q] as const,
+  adminOrder: (l: Locale, ref: string) => ["me", "admin", "order", l, ref] as const,
+  adminClasses: (l: Locale) => ["me", "admin", "classes", l] as const,
+  adminClass: (l: Locale, id: string) => ["me", "admin", "class", l, id] as const,
+  adminProducts: (l: Locale) => ["me", "admin", "products", l] as const,
+  adminProduct: (l: Locale, id: string) => ["me", "admin", "product", l, id] as const,
+  adminCourses: (l: Locale) => ["me", "admin", "courses", l] as const,
+  adminCourse: (l: Locale, id: string) => ["me", "admin", "course", l, id] as const,
 };

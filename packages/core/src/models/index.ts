@@ -5,3 +5,4 @@ export type * from "./booking";
 export type * from "./shop";
 export type * from "./payment";
 export type * from "./learning";
+export type * from "./admin";

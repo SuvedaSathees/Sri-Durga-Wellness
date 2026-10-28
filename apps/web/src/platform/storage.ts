@@ -34,10 +34,19 @@ function safe(getStorage: () => Storage): PreferenceStorage {
 /** Cart and language — kept between visits. */
 export const preferences = safe(() => window.localStorage);
 
-/** Mock-backend data for demos — kept for this browser tab only. */
-export const mockSessionStorage = {
-  load: () => safe(() => window.sessionStorage).getItem("sdw.mock") as string | null,
-  save: (value: string) => void safe(() => window.sessionStorage).setItem("sdw.mock", value),
+/**
+ * Mock-backend sample data — one copy per browser, shared by all its tabs (so an order placed in one
+ * tab shows up in the Admin area open in another). Sample data only; the live site never uses it.
+ */
+export const mockSharedStorage = {
+  load: () => safe(() => window.localStorage).getItem("sdw.mock.v3") as string | null,
+  save: (value: string) => void safe(() => window.localStorage).setItem("sdw.mock.v3", value),
+};
+
+/** Who is signed in to the mock backend — per tab, so each tab can be a different person. */
+export const mockTabStorage = {
+  load: () => safe(() => window.sessionStorage).getItem("sdw.mock.tab") as string | null,
+  save: (value: string) => void safe(() => window.sessionStorage).setItem("sdw.mock.tab", value),
 };
 
 /** A per-tab yes/no flag (e.g. "visitor paused the banner video"). */

@@ -58,6 +58,7 @@ const publicRoutes: RouteObject[] = [
 ];
 
 const privateRoutes: RouteObject[] = [
+  // The earlier "Staff" page now lives in the Admin area.
   {
     path: "staff",
     lazy: screen(() => import("../features/staff/screens/StaffDashboardScreen"), "StaffDashboardScreen"),
@@ -88,6 +89,65 @@ const privateRoutes: RouteObject[] = [
       { path: "courses", lazy: screen(() => import("../features/account/screens/MyCoursesScreen"), "MyCoursesScreen") },
       { path: "profile", lazy: screen(() => import("../features/account/screens/ProfileScreen"), "ProfileScreen") },
       { path: "settings", lazy: screen(() => import("../features/account/screens/SettingsScreen"), "SettingsScreen") },
+    ],
+  },
+  {
+    // Clinic owner only. The screen guard is for display; the server refuses /admin calls from anyone else.
+    path: "admin",
+    lazy: screen(() => import("../features/admin/screens/AdminLayout"), "AdminLayout"),
+    children: [
+      {
+        index: true,
+        lazy: screen(() => import("../features/admin/screens/AdminOverviewScreen"), "AdminOverviewScreen"),
+      },
+      {
+        path: "payments",
+        lazy: screen(() => import("../features/admin/screens/AdminPaymentsScreen"), "AdminPaymentsScreen"),
+      },
+      {
+        path: "orders",
+        lazy: screen(() => import("../features/admin/screens/AdminOrdersScreen"), "AdminOrdersScreen"),
+      },
+      {
+        path: "orders/:reference",
+        lazy: screen(() => import("../features/admin/screens/AdminOrderScreen"), "AdminOrderScreen"),
+      },
+      {
+        path: "classes",
+        lazy: screen(() => import("../features/admin/screens/AdminClassesScreen"), "AdminClassesScreen"),
+      },
+      {
+        path: "classes/new",
+        lazy: screen(() => import("../features/admin/screens/AdminClassScreen"), "AdminClassScreen"),
+      },
+      {
+        path: "classes/:id",
+        lazy: screen(() => import("../features/admin/screens/AdminClassScreen"), "AdminClassScreen"),
+      },
+      {
+        path: "products",
+        lazy: screen(() => import("../features/admin/screens/AdminProductsScreen"), "AdminProductsScreen"),
+      },
+      {
+        path: "products/new",
+        lazy: screen(() => import("../features/admin/screens/AdminProductScreen"), "AdminProductScreen"),
+      },
+      {
+        path: "products/:id",
+        lazy: screen(() => import("../features/admin/screens/AdminProductScreen"), "AdminProductScreen"),
+      },
+      {
+        path: "courses",
+        lazy: screen(() => import("../features/admin/screens/AdminCoursesScreen"), "AdminCoursesScreen"),
+      },
+      {
+        path: "courses/new",
+        lazy: screen(() => import("../features/admin/screens/AdminCourseScreen"), "AdminCourseScreen"),
+      },
+      {
+        path: "courses/:id",
+        lazy: screen(() => import("../features/admin/screens/AdminCourseScreen"), "AdminCourseScreen"),
+      },
     ],
   },
 ];

@@ -71,12 +71,16 @@ export type ProductRec = {
   image: ImageRef | null;
   initialStock: number;
   isSample: boolean;
+  /** False = hidden from the shop by the clinic (kept for existing orders). */
+  isPublished: boolean;
 };
 
 export type BatchRec = Omit<ClassBatch, "seatsLeft" | "isOpen" | "closedReason" | "price"> & {
   classId: string;
   seatLimit: number | null;
   registrationOpen: boolean;
+  /** Private Google Meet link set by the clinic; only confirmed students receive it. */
+  meetingUrl: string | null;
 };
 
 export type ClassRec = {
@@ -96,15 +100,18 @@ export type ClassRec = {
   image: ImageRef | null;
   batches: BatchRec[];
   isSample: boolean;
+  isPublished: boolean;
 };
 
 export type LessonRec = {
   id: string;
   position: number;
   title: string;
-  durationMinutes: number;
+  durationMinutes: number | null;
   isFreePreview: boolean;
   notes: string;
+  /** YouTube or Vimeo link added by the clinic. */
+  videoUrl: string | null;
 };
 
 export type CourseRec = {
@@ -123,6 +130,7 @@ export type CourseRec = {
   instructor: { name: string; bio: string | null } | null;
   lessons: LessonRec[];
   isSample: boolean;
+  isPublished: boolean;
 };
 
 export type Catalog = {
@@ -227,6 +235,7 @@ export function buildCatalog(locale: Locale, epoch: Date): Catalog {
       image: img(p.image, name),
       initialStock: p.stock,
       isSample: true,
+      isPublished: true,
     };
   });
 
@@ -253,6 +262,7 @@ export function buildCatalog(locale: Locale, epoch: Date): Catalog {
       instructorName: instructorName(c.instructor),
       image: img(placeholder("class-default.webp")),
       isSample: true,
+      isPublished: true,
       batches: c.batches.map((b, i) => ({
         id: `bat_${c.slug}_${i + 1}`,
         classId: id,
@@ -263,6 +273,7 @@ export function buildCatalog(locale: Locale, epoch: Date): Catalog {
         scheduleNote: batchText(b.scheduleNote),
         seatLimit: b.seatLimit,
         registrationOpen: true,
+        meetingUrl: null,
       })),
     };
   });
@@ -285,6 +296,7 @@ export function buildCatalog(locale: Locale, epoch: Date): Catalog {
       outcomes: ta && t ? lines(t.outcomes) : c.outcomes,
       instructor: instructor ? { name: instructor.name, bio: instructor.shortBio } : null,
       isSample: true,
+      isPublished: true,
       lessons: c.lessons.map((l, i) => ({
         id: `les_${c.slug}_${i + 1}`,
         position: i + 1,
@@ -292,6 +304,7 @@ export function buildCatalog(locale: Locale, epoch: Date): Catalog {
         durationMinutes: l.durationMinutes,
         isFreePreview: "isFreePreview" in l && l.isFreePreview === true,
         notes: ta ? TA.TAMIL_SAMPLE_LESSON_NOTES : SAMPLE_LESSON_NOTES_EN,
+        videoUrl: null,
       })),
     };
   });
