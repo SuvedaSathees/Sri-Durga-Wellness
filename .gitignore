@@ -11,3 +11,5 @@ test-results/
 apps/mobile/ios/
 apps/mobile/android/
 .DS_Store
+_backup-before-admin/
+*.bak

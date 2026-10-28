@@ -16,63 +16,6 @@ export type DemoControls = {
   setUpiEnabled(enabled: boolean): void;
   lastResetToken(): string | null;
   reset(): void;
-  staffOverview?(): {
-    payments: Array<{
-      id: string;
-      reference: string;
-      amount: number;
-      purpose: string;
-      status: string;
-      payerName?: string;
-      utr?: string;
-      createdAt: string;
-    }>;
-    appointments: Array<{
-      id: string;
-      reference: string;
-      serviceName: string;
-      practitionerName: string;
-      start: string;
-      end: string;
-      patientName: string;
-      patientEmail: string;
-      patientPhone: string;
-      status: string;
-      consultationMethod?: string;
-    }>;
-    registrations: Array<{
-      id: string;
-      reference: string;
-      className: string;
-      batchTitle: string;
-      patientName: string;
-      patientEmail: string;
-      status: string;
-      amount: number;
-      createdAt: string;
-    }>;
-    enrolments: Array<{
-      id: string;
-      reference: string;
-      courseTitle: string;
-      patientName: string;
-      patientEmail: string;
-      status: string;
-      amount: number;
-      createdAt: string;
-    }>;
-    orders: Array<{
-      id: string;
-      reference: string;
-      status: string;
-      amount: number;
-      patientName: string;
-      patientEmail: string;
-      itemsSummary: string;
-      fulfilment: string;
-      createdAt: string;
-    }>;
-  };
 };
 
 export type RuntimeOptions = {
